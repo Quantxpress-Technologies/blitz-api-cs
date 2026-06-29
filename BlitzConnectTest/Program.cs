@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Xml.Linq;
 using BlitzConnect;
 using BlitzConnect.Models;
 using BlitzConnect.Services;
@@ -6,12 +7,46 @@ using BlitzConnect.Services;
 class Program
 {
     static BlitzApiClient _client = null!;
+    static XDocument _xml = null!;
     static int _pass;
     static int _fail;
 
+    static string Xml(string path)
+    {
+        var parts = path.Split('/');
+        var el = _xml.Root!.Element(parts[0]);
+        for (int i = 1; el != null && i < parts.Length; i++)
+            el = el.Element(parts[i]);
+        return el?.Value ?? "";
+    }
+
+    static string XmlAttr(string element, string attr) =>
+        _xml.Root!.Element(element)?.Attribute(attr)?.Value ?? "";
+
+    static string[] XmlList(string parent, string child)
+    {
+        var parentEl = _xml.Root!.Element(parent);
+        return parentEl != null
+            ? parentEl.Elements(child).Select(e => e.Value).ToArray()
+            : [];
+    }
+
+    static long XmlLong(string path) => long.Parse(Xml(path));
+    static long XmlLongAttr(string element, string attr) => long.Parse(XmlAttr(element, attr));
+    static double XmlDouble(string path) => double.Parse(Xml(path));
+    static int XmlInt(string path) => int.Parse(Xml(path));
+
     static async Task Main(string[] args)
     {
-        var envPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".env");
+        var rootDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+
+        var xmlPath = Path.Combine(rootDir, "BlitzConnectTest", "test-config.xml");
+        if (File.Exists(xmlPath))
+            _xml = XDocument.Load(xmlPath);
+        else
+            Console.WriteLine($"WARNING: test-config.xml not found at {xmlPath}");
+
+        var envPath = Path.Combine(rootDir, ".env");
         envPath = Path.GetFullPath(envPath);
 
         var envVars = new Dictionary<string, string>();
@@ -29,7 +64,6 @@ class Program
         else
         {
             Console.WriteLine($"WARNING: .env not found at {envPath}");
-            Console.WriteLine("Falling back to placeholder credentials.");
         }
 
         string GetEnv(string key, string fallback) =>
@@ -37,20 +71,16 @@ class Program
 
         var config = new BlitzConfig
         {
-            BaseUrl = GetEnv("BASE_URL", "http://uat.bull8.ai:7443"),
-            AuthBaseUrl = GetEnv("AUTH_BASE_URL", "http://uat.bull8.ai:7443/api_gateway/v1"),
-            OrderBaseUrl = GetEnv("ORDER_BASE_URL", "http://uat.bull8.ai:7443/api_interactive/api/v1/"),
-            AppKey = GetEnv("APP_KEY", "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc"),
-            UserId = GetEnv("USER_ID", "Prateek123"),
-            ClientId = GetEnv("CLIENT_ID", "Prateek123"),
+            BaseUrl = GetEnv("BASE_URL", Xml("Connection/BaseUrl")),
+            AuthBaseUrl = GetEnv("AUTH_BASE_URL", Xml("Connection/AuthBaseUrl")),
+            OrderBaseUrl = GetEnv("ORDER_BASE_URL", Xml("Connection/OrderBaseUrl")),
+            AppKey = GetEnv("APP_KEY", Xml("Connection/AppKey")),
+            UserId = GetEnv("USER_ID", Xml("Connection/UserId")),
+            ClientId = GetEnv("CLIENT_ID", Xml("Connection/ClientId")),
         };
 
         using var client = new BlitzApiClient(config);
         _client = client;
-
-        // ═══════════════════════════════════════════════════════════════════
-        //  RUN
-        // ═══════════════════════════════════════════════════════════════════
 
         Console.WriteLine("╔══════════════════════════════════════════════╗");
         Console.WriteLine("║     BlitzConnect API Test Suite              ║");
@@ -78,11 +108,11 @@ class Program
         //Console.WriteLine();
         //Console.WriteLine("── Trading ──────────────────────────────────────");
 
-        TestAsync("GetOrders", TestGetOrders);
+        //TestAsync("GetOrders", TestGetOrders);
         //TestAsync("GetOpenOrders", TestGetOpenOrders);
         //TestAsync("GetPositions", TestGetPositions);
         //TestAsync("GetTrades", TestGetTrades);
-        //TestAsync("PlaceOrder", TestPlaceOrder);
+        TestAsync("PlaceOrder", TestPlaceOrder);
         //TestAsync("ModifyOrder", TestModifyOrder);
         //TestAsync("CancelOrder", TestCancelOrder);
 
@@ -90,10 +120,6 @@ class Program
         //Console.WriteLine("── Signals ─────────────────────────────────────");
 
         //TestAsync("SendSignals", TestSendSignals);
-
-        // ═══════════════════════════════════════════════════════════════════
-        //  SUMMARY
-        // ═══════════════════════════════════════════════════════════════════
 
         Console.WriteLine();
         Console.WriteLine($"╔══════════════════════════════════════════════╗");
@@ -133,19 +159,22 @@ class Program
 
     static async Task TestGetInstrumentDetailsById()
     {
-        var result = await _client.GetInstrumentDetailsAsync(110010000002885);
+        var id = XmlLongAttr("Instrument", "Id");
+        var result = await _client.GetInstrumentDetailsAsync(id);
         Console.WriteLine($"       instrumentId={result.Data?.InstrumentId} symbol={result.Data?.Symbol} ltp={result.Data?.Ltp}");
     }
 
     static async Task TestGetInstrumentDetailsBySymbol()
     {
-        var result = await _client.GetInstrumentDetailsAsync("NSECM:RELIANCE");
+        var symbol = Xml("MarketData/Symbol");
+        var result = await _client.GetInstrumentDetailsAsync(symbol);
         Console.WriteLine($"       instrumentId={result.Data?.InstrumentId} symbol={result.Data?.Symbol} ltp={result.Data?.Ltp}");
     }
 
     static async Task TestGetLtpByIds()
     {
-        var result = await _client.GetLtpAsync(new List<long> { 110010000002885, 11001000200002 });
+        var ids = _xml.Root!.Elements("Instrument").Select(e => long.Parse(e.Attribute("Id")!.Value)).Take(2).ToList();
+        var result = await _client.GetLtpAsync(ids);
         Console.WriteLine($"       status={result.Status} data keys: {string.Join(", ", result.Data?.Keys ?? Enumerable.Empty<string>())}");
         if (result.Data != null)
             foreach (var (key, entry) in result.Data)
@@ -154,7 +183,8 @@ class Program
 
     static async Task TestGetLtpByNames()
     {
-        var result = await _client.GetLtpAsync(new List<string> { "NSEFO:NIFTY28APR26FUT", "NSECM:NIFTY BANK" });
+        var names = XmlList("MarketData", "Symbol").Take(2).ToList();
+        var result = await _client.GetLtpAsync(names);
         Console.WriteLine($"       status={result.Status}");
         if (result.Data != null)
             foreach (var (key, entry) in result.Data)
@@ -163,7 +193,9 @@ class Program
 
     static async Task TestGetOptionChain()
     {
-        var result = await _client.GetOptionChainAsync("NIFTY", "2026-06-30");
+        var symbol = Xml("MarketData/OptionChainSymbol");
+        var expiry = Xml("MarketData/OptionChainExpiry");
+        var result = await _client.GetOptionChainAsync(symbol, expiry);
         Console.WriteLine($"       spot={result.Data?.SpotPrice} expiry={result.Data?.ExpiryDate} chains={result.Data?.Chains.Count}");
         if (result.Data?.Chains.Count > 0)
         {
@@ -174,7 +206,8 @@ class Program
 
     static async Task TestGetMarketQuoteByIds()
     {
-        var result = await _client.GetMarketQuoteAsync(new List<long> { 110010000002885, 110010002000002, 110010002000001 });
+        var ids = _xml.Root!.Elements("Instrument").Select(e => long.Parse(e.Attribute("Id")!.Value)).ToList();
+        var result = await _client.GetMarketQuoteAsync(ids);
         Console.WriteLine($"       status={result.Status} entries={result.Data?.Count}");
         if (result.Data != null)
             foreach (var (key, entry) in result.Data.Take(3))
@@ -183,13 +216,16 @@ class Program
 
     static async Task TestGetMarketQuoteByNames()
     {
-        var result = await _client.GetMarketQuoteAsync(new List<string> { "NSECM:TCS", "NSEFO:NIFTY28APR26FUT" });
+        var names = XmlList("MarketData", "Symbol").ToList();
+        var result = await _client.GetMarketQuoteAsync(names);
         Console.WriteLine($"       status={result.Status} entries={result.Data?.Count}");
     }
 
     static async Task TestGetHistoricalData()
     {
-        var result = await _client.GetHistoricalDataAsync("TCS", "D");
+        var symbol = Xml("MarketData/HistoricalSymbol");
+        var interval = Xml("MarketData/HistoricalInterval");
+        var result = await _client.GetHistoricalDataAsync(symbol, interval);
         Console.WriteLine($"       got {result.Count} daily candles");
         if (result.Count > 0)
         {
@@ -229,17 +265,17 @@ class Program
         var result = await _client.PlaceOrderAsync(new PlaceOrderRequest
         {
             CorrelationOrderId = $"test_{Guid.NewGuid():N}"[..16],
-            Quantity = 1,
-            Product = "CNC",
-            Tif = "GFD",
-            Price = 2945,
-            OrderType = "LIMIT",
-            OrderSide = "BUY",
-            DisclosedQuantity = 0,
-            StopPrice = 0.0,
+            Quantity = XmlInt("PlaceOrder/Quantity"),
+            Product = Xml("PlaceOrder/Product"),
+            Tif = Xml("PlaceOrder/Tif"),
+            Price = XmlDouble("PlaceOrder/Price"),
+            OrderType = Xml("PlaceOrder/OrderType"),
+            OrderSide = Xml("PlaceOrder/OrderSide"),
+            DisclosedQuantity = XmlInt("PlaceOrder/DisclosedQuantity"),
+            StopPrice = XmlDouble("PlaceOrder/StopPrice"),
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = 110010000011536,
-            ClientId = "Algo123",
+            InstrumentId = XmlLong("PlaceOrder/InstrumentId"),
+            ClientId = Xml("PlaceOrder/ClientId"),
         });
         Console.WriteLine($"       status={result.Status} message={result.Message}");
     }
@@ -248,16 +284,16 @@ class Program
     {
         var result = await _client.ModifyOrderAsync(new ModifyOrderRequest
         {
-            BlitzOrderId = 226111752520000015,
-            ModifiedOrderQuantity = 10,
-            Price = 11.01,
-            OrderType = "MARKET",
-            Tif = "GTD",
-            DisclosedQuantity = 0,
-            StopPrice = 0.0,
+            BlitzOrderId = XmlLong("ModifyOrder/BlitzOrderId"),
+            ModifiedOrderQuantity = XmlInt("ModifyOrder/ModifiedOrderQuantity"),
+            Price = XmlDouble("ModifyOrder/Price"),
+            OrderType = Xml("ModifyOrder/OrderType"),
+            Tif = Xml("ModifyOrder/Tif"),
+            DisclosedQuantity = XmlInt("ModifyOrder/DisclosedQuantity"),
+            StopPrice = XmlDouble("ModifyOrder/StopPrice"),
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = 110010000011536,
-            Symbol = "NSECM|IDEA",
+            InstrumentId = XmlLong("ModifyOrder/InstrumentId"),
+            Symbol = Xml("ModifyOrder/Symbol"),
         });
         Console.WriteLine($"       status={result.Status} message={result.Message}");
     }
@@ -266,8 +302,8 @@ class Program
     {
         var result = await _client.CancelOrderAsync(new CancelOrderRequest
         {
-            BlitzOrderId = 226111752520000020,
-            InstrumentId = 110010000011536,
+            BlitzOrderId = XmlLong("CancelOrder/BlitzOrderId"),
+            InstrumentId = XmlLong("CancelOrder/InstrumentId"),
         });
         Console.WriteLine($"       status={result.Status} message={result.Message}");
     }
@@ -275,31 +311,31 @@ class Program
     static async Task TestSendSignals()
     {
         var baseTime = DateTime.ParseExact(
-            "18-12-2025 09:21:00",
+            Xml("Signal/BaseTime"),
             "dd-MM-yyyy HH:mm:ss",
             null);
 
-        var instrumentName = "NIFTY10FEB2625550PE";
+        var instrumentName = Xml("Signal/InstrumentName");
 
         var signals = new List<SignalRequest>
         {
             new SignalRequest
             {
-                SourceStrategy = "Bull8.AmberX1",
-                DestinationStrategy = "Matrix",
-                SourceSID = "Bull8_SINGLE_Matrix",
-                InstanceRunningMode = "Started",
-                GlobalAction = "Signal",
+                SourceStrategy = Xml("Signal/SourceStrategy"),
+                DestinationStrategy = Xml("Signal/DestinationStrategy"),
+                SourceSID = Xml("Signal/SourceSID"),
+                InstanceRunningMode = Xml("Signal/InstanceRunningMode"),
+                GlobalAction = Xml("Signal/GlobalAction"),
                 Instruments = new List<SignalInstrument>
                 {
                     new SignalInstrument
                     {
-                        ExchangeSegment = "NSEFO",
+                        ExchangeSegment = Xml("Signal/ExchangeSegment"),
                         InstrumentName = instrumentName,
-                        Action = "BUY",
-                        Lot = "27",
+                        Action = Xml("Signal/Action"),
+                        Lot = Xml("Signal/Lot"),
                         TimeStamp = baseTime.ToString("dd-MM-yyyy HH:mm:ss"),
-                        InfoText = "PE Entry Signal 25550"
+                        InfoText = Xml("Signal/InfoText"),
                     }
                 }
             }
