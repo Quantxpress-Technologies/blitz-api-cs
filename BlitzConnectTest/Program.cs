@@ -287,13 +287,16 @@ class Program
         }
 
         var orderId = dataEl.GetProperty("blitzOrderId").GetInt64();
-        Console.WriteLine($"       placed orderId={orderId}");
+        var placePrice = dataEl.GetProperty("price").GetDouble();
+        var modifyPrice = Math.Round(placePrice * 1.01, 2);
+        Console.WriteLine($"       placed orderId={orderId} price={placePrice}");
+        Console.WriteLine($"       modify price 1% higher: {modifyPrice}");
 
         var modifyResult = await _client.ModifyOrderAsync(new ModifyOrderRequest
         {
             BlitzOrderId = orderId,
             ModifiedOrderQuantity = XmlInt("ModifyOrder/ModifiedOrderQuantity"),
-            Price = XmlDouble("ModifyOrder/Price"),
+            Price = modifyPrice,
             OrderType = Xml("ModifyOrder/OrderType"),
             Tif = Xml("ModifyOrder/Tif"),
             DisclosedQuantity = XmlInt("ModifyOrder/DisclosedQuantity"),
