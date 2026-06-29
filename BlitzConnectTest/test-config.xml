@@ -41,10 +41,10 @@
 
   <ModifyOrder>
     <BlitzOrderId>226111752520000015</BlitzOrderId>
-    <ModifiedOrderQuantity>10</ModifiedOrderQuantity>
+    <ModifiedOrderQuantity>2</ModifiedOrderQuantity>
     <Price>11.01</Price>
-    <OrderType>MARKET</OrderType>
-    <Tif>GTD</Tif>
+    <OrderType>LIMIT</OrderType>
+    <Tif>GFD</Tif>
     <DisclosedQuantity>0</DisclosedQuantity>
     <StopPrice>0.0</StopPrice>
     <InstrumentId>110010000011536</InstrumentId>

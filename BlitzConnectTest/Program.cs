@@ -98,20 +98,20 @@ class Program
 
         //TestAsync("GetInstrumentDetails.ById", TestGetInstrumentDetailsById);
         //TestAsync("GetInstrumentDetails.BySymbol", TestGetInstrumentDetailsBySymbol);
-        //TestAsync("GetLTP.ByIds", TestGetLtpByIds);
-        //TestAsync("GetLTP.ByNames", TestGetLtpByNames);
-        //TestAsync("GetOptionChain", TestGetOptionChain);
-        //TestAsync("GetMarketQuote.ByIds", TestGetMarketQuoteByIds);
-        //TestAsync("GetMarketQuote.ByNames", TestGetMarketQuoteByNames);
-        //TestAsync("GetHistoricalData", TestGetHistoricalData);
+        TestAsync("GetLTP.ByIds", TestGetLtpByIds);
+        TestAsync("GetLTP.ByNames", TestGetLtpByNames);
+        TestAsync("GetOptionChain", TestGetOptionChain);
+        TestAsync("GetMarketQuote.ByIds", TestGetMarketQuoteByIds);
+        TestAsync("GetMarketQuote.ByNames", TestGetMarketQuoteByNames);
+        TestAsync("GetHistoricalData", TestGetHistoricalData);
 
-        //Console.WriteLine();
-        //Console.WriteLine("── Trading ──────────────────────────────────────");
+        Console.WriteLine();
+        Console.WriteLine("── Trading ──────────────────────────────────────");
 
-        //TestAsync("GetOrders", TestGetOrders);
-        //TestAsync("GetOpenOrders", TestGetOpenOrders);
-        //TestAsync("GetPositions", TestGetPositions);
-        //TestAsync("GetTrades", TestGetTrades);
+        TestAsync("GetOrders", TestGetOrders);
+        TestAsync("GetOpenOrders", TestGetOpenOrders);
+        TestAsync("GetPositions", TestGetPositions);
+        TestAsync("GetTrades", TestGetTrades);
         TestAsync("PlaceAndCancelCycle", TestPlaceAndCancelOrderCycle);
         TestAsync("PlaceAndModifyCycle", TestPlaceAndModifyOrderCycle);
         //TestAsync("ModifyOrder", TestModifyOrder);
@@ -120,7 +120,7 @@ class Program
         //Console.WriteLine();
         //Console.WriteLine("── Signals ─────────────────────────────────────");
 
-        //TestAsync("SendSignals", TestSendSignals);
+        TestAsync("SendSignals", TestSendSignals);
 
         Console.WriteLine();
         Console.WriteLine($"╔══════════════════════════════════════════════╗");
@@ -263,21 +263,35 @@ class Program
 
     static async Task TestPlaceAndModifyOrderCycle()
     {
-        var placeResult = await _client.PlaceOrderAsync(new PlaceOrderRequest
+        var instrumentId = XmlLong("PlaceOrder/InstrumentId");
+        var ltpResp = await _client.GetLtpAsync(new List<long> { instrumentId });
+        var ltp = ltpResp.Data?.Values.FirstOrDefault()?.Ltp ?? 0;
+        Console.WriteLine($"       LTP={ltp}");
+
+        if (ltp <= 0)
+        {
+            Console.WriteLine("       could not fetch LTP, falling back to XML price");
+            ltp = XmlDouble("PlaceOrder/Price");
+        }
+
+        var placePrice = Math.Round(ltp * 0.95, 2);
+        var placeRequest = new PlaceOrderRequest
         {
             CorrelationOrderId = $"test_{Guid.NewGuid():N}"[..16],
             Quantity = XmlInt("PlaceOrder/Quantity"),
             Product = Xml("PlaceOrder/Product"),
             Tif = Xml("PlaceOrder/Tif"),
-            Price = XmlDouble("PlaceOrder/Price"),
+            Price = placePrice,
             OrderType = Xml("PlaceOrder/OrderType"),
             OrderSide = Xml("PlaceOrder/OrderSide"),
             DisclosedQuantity = XmlInt("PlaceOrder/DisclosedQuantity"),
             StopPrice = XmlDouble("PlaceOrder/StopPrice"),
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = XmlLong("PlaceOrder/InstrumentId"),
+            InstrumentId = instrumentId,
             ClientId = Xml("PlaceOrder/ClientId"),
-        });
+        };
+
+        var placeResult = await _client.PlaceOrderAsync(placeRequest);
         Console.WriteLine($"       place status={placeResult.Status} message={placeResult.Message}");
 
         if (placeResult.Data is not JsonElement dataEl)
@@ -287,23 +301,21 @@ class Program
         }
 
         var orderId = dataEl.GetProperty("blitzOrderId").GetInt64();
-        var placePrice = dataEl.GetProperty("price").GetDouble();
-        var modifyPrice = Math.Round(placePrice * 1.01, 2);
         Console.WriteLine($"       placed orderId={orderId} price={placePrice}");
-        Console.WriteLine($"       modify price 1% higher: {modifyPrice}");
+
+        var modifyPrice = Math.Round(placePrice * 1.01, 2);
+        Console.WriteLine($"       modify price 1% higher: {modifyPrice}, same qty {XmlInt("PlaceOrder/Quantity")}");
 
         var modifyResult = await _client.ModifyOrderAsync(new ModifyOrderRequest
         {
             BlitzOrderId = orderId,
-            ModifiedOrderQuantity = XmlInt("ModifyOrder/ModifiedOrderQuantity"),
+            ModifiedOrderQuantity = XmlInt("PlaceOrder/Quantity"),
             Price = modifyPrice,
-            OrderType = Xml("ModifyOrder/OrderType"),
-            Tif = Xml("ModifyOrder/Tif"),
-            DisclosedQuantity = XmlInt("ModifyOrder/DisclosedQuantity"),
-            StopPrice = XmlDouble("ModifyOrder/StopPrice"),
+            OrderType = "LIMIT",
+            Tif = "GFD",
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = XmlLong("ModifyOrder/InstrumentId"),
-            Symbol = Xml("ModifyOrder/Symbol"),
+            InstrumentId = XmlLong("PlaceOrder/InstrumentId"),
+            Symbol = null,
         });
         Console.WriteLine($"       modify status={modifyResult.Status} message={modifyResult.Message}");
     }

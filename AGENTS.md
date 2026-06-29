@@ -29,6 +29,7 @@ Test runner loads credentials from `../.env` (one dir above repo root). Most tes
 - **Market data** (`MarketRequestAsync`) — auto-selects GET/POST based on body being null. Base URL from `BlitzConfig.BaseUrl`.
 - **Trading** (`TradingRequestAsync`) — explicit `HttpMethod`. Base URL from `BlitzConfig.OrderBaseUrl`.
 - **CancelOrderAsync** builds query string manually (HTTP DELETE does not carry a body).
+- **ModifyOrderAsync** — set `Symbol = null` explicitly (passing a non-null symbol string may cause `"order price is out of price band"`).
 - All responses wrap through `BlitzApiResponse<T>` (fields: `status`, `data`, `message`).
 - `OrdersResponse` / `PositionsResponse` / `TradesResponse` are typed subclasses of `BlitzApiResponse<T>`.
 
