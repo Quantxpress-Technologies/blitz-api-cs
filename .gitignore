@@ -1,14 +1,25 @@
-# Visual Studio
-.vs/
+# Build outputs
 bin/
 obj/
+*.dll
+*.exe
+*.pdb
 
-# User-specific files
+# NuGet
+packages/
+*.nupkg
+
+# Environment / credentials
+.env
+
+# IDE
+.vs/
+.idea/
+.vscode/
 *.user
 *.suo
+*.DotSettings.user
 
-# Rider
-.idea/
-
-# VS Code
-.vscode/
+# OS
+Thumbs.db
+.DS_Store
