@@ -112,7 +112,8 @@ class Program
         //TestAsync("GetOpenOrders", TestGetOpenOrders);
         //TestAsync("GetPositions", TestGetPositions);
         //TestAsync("GetTrades", TestGetTrades);
-        TestAsync("PlaceOrder", TestPlaceOrder);
+        TestAsync("PlaceAndCancelCycle", TestPlaceAndCancelOrderCycle);
+        TestAsync("PlaceAndModifyCycle", TestPlaceAndModifyOrderCycle);
         //TestAsync("ModifyOrder", TestModifyOrder);
         //TestAsync("CancelOrder", TestCancelOrder);
 
@@ -258,6 +259,86 @@ class Program
     {
         var result = await _client.GetTradesAsync();
         Console.WriteLine($"       status={result.Status} count={result.Data?.Count}");
+    }
+
+    static async Task TestPlaceAndModifyOrderCycle()
+    {
+        var placeResult = await _client.PlaceOrderAsync(new PlaceOrderRequest
+        {
+            CorrelationOrderId = $"test_{Guid.NewGuid():N}"[..16],
+            Quantity = XmlInt("PlaceOrder/Quantity"),
+            Product = Xml("PlaceOrder/Product"),
+            Tif = Xml("PlaceOrder/Tif"),
+            Price = XmlDouble("PlaceOrder/Price"),
+            OrderType = Xml("PlaceOrder/OrderType"),
+            OrderSide = Xml("PlaceOrder/OrderSide"),
+            DisclosedQuantity = XmlInt("PlaceOrder/DisclosedQuantity"),
+            StopPrice = XmlDouble("PlaceOrder/StopPrice"),
+            TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            InstrumentId = XmlLong("PlaceOrder/InstrumentId"),
+            ClientId = Xml("PlaceOrder/ClientId"),
+        });
+        Console.WriteLine($"       place status={placeResult.Status} message={placeResult.Message}");
+
+        if (placeResult.Data is not JsonElement dataEl)
+        {
+            Console.WriteLine("       no data in place response, cannot proceed with modify");
+            return;
+        }
+
+        var orderId = dataEl.GetProperty("blitzOrderId").GetInt64();
+        Console.WriteLine($"       placed orderId={orderId}");
+
+        var modifyResult = await _client.ModifyOrderAsync(new ModifyOrderRequest
+        {
+            BlitzOrderId = orderId,
+            ModifiedOrderQuantity = XmlInt("ModifyOrder/ModifiedOrderQuantity"),
+            Price = XmlDouble("ModifyOrder/Price"),
+            OrderType = Xml("ModifyOrder/OrderType"),
+            Tif = Xml("ModifyOrder/Tif"),
+            DisclosedQuantity = XmlInt("ModifyOrder/DisclosedQuantity"),
+            StopPrice = XmlDouble("ModifyOrder/StopPrice"),
+            TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            InstrumentId = XmlLong("ModifyOrder/InstrumentId"),
+            Symbol = Xml("ModifyOrder/Symbol"),
+        });
+        Console.WriteLine($"       modify status={modifyResult.Status} message={modifyResult.Message}");
+    }
+
+    static async Task TestPlaceAndCancelOrderCycle()
+    {
+        var placeResult = await _client.PlaceOrderAsync(new PlaceOrderRequest
+        {
+            CorrelationOrderId = $"test_{Guid.NewGuid():N}"[..16],
+            Quantity = XmlInt("PlaceOrder/Quantity"),
+            Product = Xml("PlaceOrder/Product"),
+            Tif = Xml("PlaceOrder/Tif"),
+            Price = XmlDouble("PlaceOrder/Price"),
+            OrderType = Xml("PlaceOrder/OrderType"),
+            OrderSide = Xml("PlaceOrder/OrderSide"),
+            DisclosedQuantity = XmlInt("PlaceOrder/DisclosedQuantity"),
+            StopPrice = XmlDouble("PlaceOrder/StopPrice"),
+            TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            InstrumentId = XmlLong("PlaceOrder/InstrumentId"),
+            ClientId = Xml("PlaceOrder/ClientId"),
+        });
+        Console.WriteLine($"       place status={placeResult.Status} message={placeResult.Message}");
+
+        if (placeResult.Data is not JsonElement dataEl)
+        {
+            Console.WriteLine("       no data in place response, cannot proceed with cancel");
+            return;
+        }
+
+        var orderId = dataEl.GetProperty("blitzOrderId").GetInt64();
+        Console.WriteLine($"       placed orderId={orderId}");
+
+        var cancelResult = await _client.CancelOrderAsync(new CancelOrderRequest
+        {
+            BlitzOrderId = orderId,
+            InstrumentId = XmlLong("PlaceOrder/InstrumentId"),
+        });
+        Console.WriteLine($"       cancel status={cancelResult.Status} message={cancelResult.Message}");
     }
 
     static async Task TestPlaceOrder()

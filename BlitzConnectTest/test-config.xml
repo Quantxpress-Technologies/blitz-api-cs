@@ -30,13 +30,13 @@
     <Quantity>1</Quantity>
     <Product>CNC</Product>
     <Tif>GFD</Tif>
-    <Price>2945</Price>
+    <Price>1.0</Price>
     <OrderType>LIMIT</OrderType>
     <OrderSide>BUY</OrderSide>
     <DisclosedQuantity>0</DisclosedQuantity>
     <StopPrice>0.0</StopPrice>
     <InstrumentId>110010000011536</InstrumentId>
-    <ClientId>prateek123</ClientId>
+    <ClientId>Prateek123</ClientId>
   </PlaceOrder>
 
   <ModifyOrder>
