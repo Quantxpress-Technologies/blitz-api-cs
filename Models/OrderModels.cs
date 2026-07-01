@@ -47,23 +47,28 @@ public class OrderEntry
 
 public class SignalRequest
 {
-    public string SourceStrategy { get; set; } 
-    public string DestinationStrategy { get; set; }
-    public string SourceSID { get; set; }
-    public string InstanceRunningMode { get; set; }
-    public string GlobalAction { get; set; }
-    public List<SignalInstrument> Instruments { get; set; } = new();
+    [JsonPropertyName("sourceStrategy")]      public string SourceStrategy { get; set; } = "";
+    [JsonPropertyName("destinationStrategy")] public string DestinationStrategy { get; set; } = "";
+    [JsonPropertyName("sourceSID")]           public string SourceSID { get; set; } = "";
+    [JsonPropertyName("instanceRunningMode")] public string InstanceRunningMode { get; set; } = "";
+    [JsonPropertyName("globalAction")]        public string GlobalAction { get; set; } = "";
+    [JsonPropertyName("instruments")]         public List<SignalInstrument> Instruments { get; set; } = new();
 }
 
 public class SignalInstrument
 {
-    public string ExchangeSegment { get; set; } 
-    public string InstrumentName { get; set; } 
-    public string Action { get; set; } 
-    public string Lot { get; set; }
-    public string TimeStamp { get; set; }
-    public string InfoText { get; set; } 
+    [JsonPropertyName("exchangeSegment")] public string ExchangeSegment { get; set; } = "";
+    [JsonPropertyName("instrumentName")]  public string InstrumentName { get; set; } = "";
+    [JsonPropertyName("action")]          public string Action { get; set; } = "";
+    [JsonPropertyName("lot")]             public string Lot { get; set; } = "";
+    [JsonPropertyName("timeStamp")]       public string TimeStamp { get; set; } = "";
+    [JsonPropertyName("infoText")]        public string InfoText { get; set; } = "";
 }
+public class PlaceOrderData
+{
+    [JsonPropertyName("blitzOrderId")] public long BlitzOrderId { get; init; }
+}
+
 public class OrdersResponse : BlitzApiResponse<List<OrderEntry>> { }
 
 public class PositionsResponse : BlitzApiResponse<List<object>> { }

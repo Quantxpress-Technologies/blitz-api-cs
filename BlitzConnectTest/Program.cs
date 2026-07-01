@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Xml.Linq;
 using BlitzConnect;
 using BlitzConnect.Models;
@@ -101,6 +100,7 @@ class Program
         TestAsync("GetLTP.ByIds", TestGetLtpByIds);
         TestAsync("GetLTP.ByNames", TestGetLtpByNames);
         TestAsync("GetOptionChain", TestGetOptionChain);
+        TestAsync("GetRelianceAtmStraddle", TestGetRelianceAtmStraddle);
         TestAsync("GetMarketQuote.ByIds", TestGetMarketQuoteByIds);
         TestAsync("GetMarketQuote.ByNames", TestGetMarketQuoteByNames);
         TestAsync("GetHistoricalData", TestGetHistoricalData);
@@ -205,6 +205,78 @@ class Program
         }
     }
 
+    static async Task TestGetRelianceAtmStraddle()
+    {
+        var symbol = Xml("MarketData/RelianceOptionChainSymbol");
+        var expiry = Xml("MarketData/RelianceOptionChainExpiry");
+
+        OptionChainResponse? result = null;
+
+        // Try 1: instrument ID as number
+        Console.WriteLine("       Trying instrumentId (number) as symbol...");
+        result = await _client.GetOptionChainRawAsync(
+            new { symbol = 110010000002885L, expiryDate = expiry });
+
+        // Try 2: with exchangeSegment
+        if (result == null)
+        {
+            Console.WriteLine("       Trying with exchangeSegment...");
+            result = await _client.GetOptionChainRawAsync(
+                new { symbol, expiryDate = expiry, exchangeSegment = 2 });
+        }
+
+        // Try 3: instrument ID as string
+        if (result == null)
+        {
+            Console.WriteLine("       Trying instrumentId (string) as symbol...");
+            result = await _client.GetOptionChainRawAsync(
+                new { symbol = "110010000002885", expiryDate = expiry });
+        }
+
+        // Try 4: bare RELIANCE with request string
+        Console.WriteLine("       Trying RELIANCE + request...");
+        result = await _client.GetOptionChainRawAsync(
+            new { request = "optionchain", symbol = "RELIANCE", expiryDate = "2026-07-02" });
+
+        // Try 5: NSEFO prefix with request string
+        if (result == null)
+        {
+            Console.WriteLine("       Trying NSEFO: + request...");
+            result = await _client.GetOptionChainRawAsync(
+                new { request = "optionchain", symbol = "NSEFO:RELIANCE", expiryDate = "2026-07-02" });
+        }
+
+        // Try 6: NSECM prefix with request string
+        if (result == null)
+        {
+            Console.WriteLine("       Trying NSECM: + request...");
+            result = await _client.GetOptionChainRawAsync(
+                new { request = "optionchain", symbol = "NSECM:RELIANCE", expiryDate = "2026-07-02" });
+        }
+
+        Console.WriteLine($"       Spot={result.Data?.SpotPrice} Expiry={result.Data?.ExpiryDate} ATM={result.Data?.Atm}");
+
+        var atmStrike = result.Data?.Atm ?? 0;
+        var chains = result.Data?.Chains ?? [];
+
+        var atmEntry = chains.FirstOrDefault(c => Math.Abs(c.StrikePrice - atmStrike) < 0.01);
+        if (atmEntry == null)
+        {
+            Console.WriteLine("       No ATM entry found in chain");
+            return;
+        }
+
+        var callPremium = atmEntry.CallOption?.Price ?? atmEntry.CallOption?.Ltp ?? 0;
+        var putPremium  = atmEntry.PutOption?.Price  ?? atmEntry.PutOption?.Ltp  ?? 0;
+        var straddleCost = callPremium + putPremium;
+
+        Console.WriteLine($"       Strike    : {atmEntry.StrikePrice}");
+        Console.WriteLine($"       Call Prem : {callPremium}  (LTP={atmEntry.CallOption?.Ltp}, Delta={atmEntry.CallOption?.Delta}, IV={atmEntry.CallOption?.Iv})");
+        Console.WriteLine($"       Put Prem  : {putPremium}  (LTP={atmEntry.PutOption?.Ltp}, Delta={atmEntry.PutOption?.Delta}, IV={atmEntry.PutOption?.Iv})");
+        Console.WriteLine($"       ───────────────────────────────");
+        Console.WriteLine($"       STRADDLE  : {straddleCost}  (Call + Put)");
+    }
+
     static async Task TestGetMarketQuoteByIds()
     {
         var ids = _xml.Root!.Elements("Instrument").Select(e => long.Parse(e.Attribute("Id")!.Value)).ToList();
@@ -294,13 +366,13 @@ class Program
         var placeResult = await _client.PlaceOrderAsync(placeRequest);
         Console.WriteLine($"       place status={placeResult.Status} message={placeResult.Message}");
 
-        if (placeResult.Data is not JsonElement dataEl)
+        if (placeResult.Data is null)
         {
             Console.WriteLine("       no data in place response, cannot proceed with modify");
             return;
         }
 
-        var orderId = dataEl.GetProperty("blitzOrderId").GetInt64();
+        var orderId = placeResult.Data.BlitzOrderId;
         Console.WriteLine($"       placed orderId={orderId} price={placePrice}");
 
         var modifyPrice = Math.Round(placePrice * 1.01, 2);
@@ -339,13 +411,13 @@ class Program
         });
         Console.WriteLine($"       place status={placeResult.Status} message={placeResult.Message}");
 
-        if (placeResult.Data is not JsonElement dataEl)
+        if (placeResult.Data is null)
         {
             Console.WriteLine("       no data in place response, cannot proceed with cancel");
             return;
         }
 
-        var orderId = dataEl.GetProperty("blitzOrderId").GetInt64();
+        var orderId = placeResult.Data.BlitzOrderId;
         Console.WriteLine($"       placed orderId={orderId}");
 
         var cancelResult = await _client.CancelOrderAsync(new CancelOrderRequest

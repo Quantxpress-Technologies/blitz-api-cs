@@ -21,7 +21,9 @@
     <Symbol>NSECM:NIFTY BANK</Symbol>
     <Symbol>NSECM:TCS</Symbol>
     <OptionChainSymbol>NIFTY</OptionChainSymbol>
-    <OptionChainExpiry>2026-06-30</OptionChainExpiry>
+    <OptionChainExpiry>2026-07-02</OptionChainExpiry>
+    <RelianceOptionChainSymbol>RELIANCE</RelianceOptionChainSymbol>
+    <RelianceOptionChainExpiry>2026-07-02</RelianceOptionChainExpiry>
     <HistoricalSymbol>TCS</HistoricalSymbol>
     <HistoricalInterval>D</HistoricalInterval>
   </MarketData>

@@ -5,7 +5,7 @@ using BlitzConnect.Models;
 
 namespace BlitzConnect.Services;
 
-public class BlitzApiClient : IDisposable
+public class BlitzApiClient : IBlitzApiClient, IDisposable
 {
     private readonly HttpClient _http;
     private readonly BlitzConfig _config;
@@ -28,13 +28,13 @@ public class BlitzApiClient : IDisposable
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    public async Task LoginAsync()
+    public async Task LoginAsync(CancellationToken ct = default)
     {
         var url = $"{_config.AuthBaseUrl.TrimEnd('/')}/api/app_login";
         var payload = new { appKey = _config.AppKey, userId = _config.UserId };
 
-        var resp = await _http.PostAsJsonAsync(url, payload);
-        var body = await resp.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions)
+        var resp = await _http.PostAsJsonAsync(url, payload, ct);
+        var body = await resp.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions, ct)
                    ?? throw new BlitzConnectException((int)resp.StatusCode, "Empty login response");
 
         if (resp.StatusCode != System.Net.HttpStatusCode.OK || body.Status != "success")
@@ -46,9 +46,9 @@ public class BlitzApiClient : IDisposable
 
     // ── Internal request ─────────────────────────────────────────────────────
 
-    private async Task EnsureAuthenticatedAsync()
+    private async Task EnsureAuthenticatedAsync(CancellationToken ct = default)
     {
-        if (_token is null) await LoginAsync();
+        if (_token is null) await LoginAsync(ct);
     }
 
     private void SetAuthHeader()
@@ -58,9 +58,10 @@ public class BlitzApiClient : IDisposable
     }
     protected async Task<T> RequestAsync<T>(
     HttpMethod method, string baseUrl, string path,
-    object? body = null, string? accept = null)
+    object? body = null, string? accept = null,
+    CancellationToken ct = default)
     {
-        await EnsureAuthenticatedAsync();
+        await EnsureAuthenticatedAsync(ct);
 
         var url = $"{baseUrl.TrimEnd('/')}/{path.TrimStart('/')}";
         Console.WriteLine($"Request: {method} {url}");
@@ -70,13 +71,6 @@ public class BlitzApiClient : IDisposable
         req.Headers.TryAddWithoutValidation("Accept", accept ?? "application/json");
         SetAuthHeader();
 
-        //if (body is not null)
-        //{
-        //    req.Content = new StringContent(
-        //        JsonSerializer.Serialize(body, JsonOptions),
-        //        Encoding.UTF8,
-        //        "application/json");
-        //}
         string? requestBody = null;
 
         if (body is not null)
@@ -103,29 +97,19 @@ public class BlitzApiClient : IDisposable
             Console.WriteLine("=============================");
         }
 
-        var response = await _http.SendAsync(req);
+        var response = await _http.SendAsync(req, ct);
 
-        var retried = false;
-
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !retried)
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             response.Dispose();
 
             lock (_authLock) { _token = null; }
 
-            await LoginAsync();
+            await LoginAsync(ct);
             SetAuthHeader();
 
             using var retryReq = new HttpRequestMessage(method, url);
             retryReq.Headers.TryAddWithoutValidation("Accept", accept ?? "application/json");
-
-            //if (body is not null)
-            //{
-            //    retryReq.Content = new StringContent(
-            //        JsonSerializer.Serialize(body, JsonOptions),
-            //        Encoding.UTF8,
-            //        "application/json");
-            //}
 
             if (body is not null)
             {
@@ -151,13 +135,12 @@ public class BlitzApiClient : IDisposable
                 Console.WriteLine("=============================");
             }
 
-            response = await _http.SendAsync(retryReq);
-            retried = true;
+            response = await _http.SendAsync(retryReq, ct);
         }
 
         using (response)
         {
-            var text = await response.Content.ReadAsStringAsync();
+            var text = await response.Content.ReadAsStringAsync(ct);
 
             // ================= DEBUG OUTPUT =================
             Console.WriteLine("──────── HTTP STATUS ────────");
@@ -172,12 +155,12 @@ public class BlitzApiClient : IDisposable
             {
                 throw new BlitzConnectException(
                     (int)response.StatusCode,
-                    $"Request failed ({(int)response.StatusCode}): {text}");
+                    $"Request failed ({(int)response.StatusCode}): {text}",
+                    text);
             }
 
             try
             {
-                //var result = JsonSerializer.Deserialize<T>(text, JsonOptions);
                 if (!string.IsNullOrWhiteSpace(text) &&
     text.TrimStart().StartsWith("\""))
                 {
@@ -207,75 +190,98 @@ public class BlitzApiClient : IDisposable
         }
     }
 
-    private Task<T> MarketRequestAsync<T>(string path, object? body = null, string? accept = null) =>
+    private Task<T> MarketRequestAsync<T>(string path, object? body = null, string? accept = null, CancellationToken ct = default) =>
         RequestAsync<T>(body is null ? HttpMethod.Get : HttpMethod.Post,
-            _config.BaseUrl, path, body, accept);
+            _config.BaseUrl, path, body, accept, ct);
 
-    private Task<T> TradingRequestAsync<T>(HttpMethod method, string path, object? body = null) =>
-        RequestAsync<T>(method, _config.OrderBaseUrl, path, body);
+    private Task<T> TradingRequestAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken ct = default) =>
+        RequestAsync<T>(method, _config.OrderBaseUrl, path, body, accept: null, ct);
 
     // ── Market Data ──────────────────────────────────────────────────────────
 
-    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id) =>
-        await MarketRequestAsync<BlitzApiResponse<InstrumentDetail>>($"v1/api/instruments/{id}");
+    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id, CancellationToken ct = default) =>
+        await MarketRequestAsync<BlitzApiResponse<InstrumentDetail>>($"v1/api/instruments/{id}", ct: ct);
 
-    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol) =>
-        await MarketRequestAsync<BlitzApiResponse<InstrumentDetail>>($"v1/api/instruments/{symbol}");
+    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default) =>
+        await MarketRequestAsync<BlitzApiResponse<InstrumentDetail>>($"v1/api/instruments/{symbol}", ct: ct);
 
-    public async Task<LtpResponse> GetLtpAsync(List<long> ids) =>
+    public async Task<BlitzApiResponse<List<InstrumentDetail>>> GetInstrumentsAsync(CancellationToken ct = default) =>
+        await MarketRequestAsync<BlitzApiResponse<List<InstrumentDetail>>>("v1/api/instruments", ct: ct);
+
+    public async Task<LtpResponse> GetLtpAsync(List<long> ids, CancellationToken ct = default) =>
         await MarketRequestAsync<LtpResponse>("md-api/marketfeed/ltp",
-            new { instrumentIds = ids });
+            new { instrumentIds = ids }, ct: ct);
 
-    public async Task<LtpResponse> GetLtpAsync(List<string> names) =>
+    public async Task<LtpResponse> GetLtpAsync(List<string> names, CancellationToken ct = default) =>
         await MarketRequestAsync<LtpResponse>("md-api/marketfeed/ltp",
-            new { instrumentNames = names });
+            new { instrumentNames = names }, ct: ct);
 
-    public async Task<OptionChainResponse> GetOptionChainAsync(string symbol, string expiryDate) =>
+    public async Task<OptionChainResponse> GetOptionChainAsync(string symbol, string expiryDate, CancellationToken ct = default) =>
         await MarketRequestAsync<OptionChainResponse>("md-api/marketfeed/optionchain",
-            new { symbol, expiryDate });
+            new { symbol, expiryDate }, ct: ct);
 
-    public async Task<MarketQuoteResponse> GetMarketQuoteAsync(List<long> ids) =>
+    public async Task<OptionChainResponse?> GetOptionChainRawAsync(object body, CancellationToken ct = default)
+    {
+        try
+        {
+            return await MarketRequestAsync<OptionChainResponse>("md-api/marketfeed/optionchain", body, ct: ct);
+        }
+        catch (BlitzConnectException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<MarketQuoteResponse> GetMarketQuoteAsync(List<long> ids, CancellationToken ct = default) =>
         await MarketRequestAsync<MarketQuoteResponse>("md-api/marketfeed/quote",
-            new { instrumentIds = ids });
+            new { instrumentIds = ids }, ct: ct);
 
-    public async Task<MarketQuoteResponse> GetMarketQuoteAsync(List<string> names) =>
+    public async Task<MarketQuoteResponse> GetMarketQuoteAsync(List<string> names, CancellationToken ct = default) =>
         await MarketRequestAsync<MarketQuoteResponse>("md-api/marketfeed/quote",
-            new { instrumentNames = names });
+            new { instrumentNames = names }, ct: ct);
 
-    public async Task<List<HistoricalDataItem>> GetHistoricalDataAsync(string instrument, string interval) =>
+    public async Task<List<HistoricalDataItem>> GetHistoricalDataAsync(string instrument, string interval, CancellationToken ct = default) =>
         await MarketRequestAsync<List<HistoricalDataItem>>("md-api/marketfeed/historicalData",
             new { instrument, interval },
-            accept: "*/*");
+            accept: "*/*", ct: ct);
+
+    public async Task<DepthResponse> GetOrderBookAsync(long instrumentId, CancellationToken ct = default) =>
+        await MarketRequestAsync<DepthResponse>("md-api/marketfeed/depth",
+            new { instrumentId }, ct: ct);
 
     // ── Trading (read-only via REST) ─────────────────────────────────────────
 
-    public async Task<OrdersResponse> GetOrdersAsync() =>
-        await TradingRequestAsync<OrdersResponse>(HttpMethod.Get, "orders/history");
+    public async Task<OrdersResponse> GetOrdersAsync(CancellationToken ct = default) =>
+        await TradingRequestAsync<OrdersResponse>(HttpMethod.Get, "orders/history", ct: ct);
 
-    public async Task<OrdersResponse> GetOpenOrdersAsync() =>
-        await TradingRequestAsync<OrdersResponse>(HttpMethod.Get, "orders/openOrders");
+    public async Task<OrdersResponse> GetOpenOrdersAsync(CancellationToken ct = default) =>
+        await TradingRequestAsync<OrdersResponse>(HttpMethod.Get, "orders/openOrders", ct: ct);
 
-    public async Task<PositionsResponse> GetPositionsAsync() =>
-        await TradingRequestAsync<PositionsResponse>(HttpMethod.Get, "orders/positions");
+    public async Task<PositionsResponse> GetPositionsAsync(CancellationToken ct = default) =>
+        await TradingRequestAsync<PositionsResponse>(HttpMethod.Get, "orders/positions", ct: ct);
 
-    public async Task<TradesResponse> GetTradesAsync() =>
-        await TradingRequestAsync<TradesResponse>(HttpMethod.Get, "orders/trades");
+    public async Task<TradesResponse> GetTradesAsync(CancellationToken ct = default) =>
+        await TradingRequestAsync<TradesResponse>(HttpMethod.Get, "orders/trades", ct: ct);
+
+    public async Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default) =>
+        await TradingRequestAsync<BlitzApiResponse<OrderEntry>>(
+            HttpMethod.Get, $"orders/{blitzOrderId}", ct: ct);
+
+    public async Task<BlitzApiResponse<object>> GetTradeByIdAsync(long tradeId, CancellationToken ct = default) =>
+        await TradingRequestAsync<BlitzApiResponse<object>>(
+            HttpMethod.Get, $"orders/trades/{tradeId}", ct: ct);
 
     // ── Write operations (will get 405 via REST) ─────────────────────────────
 
-    public async Task<BlitzApiResponse<object>> PlaceOrderAsync(PlaceOrderRequest order) =>
-        await TradingRequestAsync<BlitzApiResponse<object>>(
-            HttpMethod.Post, "orders/placeOrder", order);
+    public async Task<BlitzApiResponse<PlaceOrderData>> PlaceOrderAsync(PlaceOrderRequest order, CancellationToken ct = default) =>
+        await TradingRequestAsync<BlitzApiResponse<PlaceOrderData>>(
+            HttpMethod.Post, "orders/placeOrder", order, ct);
 
-    public async Task<BlitzApiResponse<object>> ModifyOrderAsync(ModifyOrderRequest order) =>
-        await TradingRequestAsync<BlitzApiResponse<object>>(
-            HttpMethod.Put, "orders/modifyOrder", order);
+    public async Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
+        await TradingRequestAsync<BlitzApiResponse<PlaceOrderData>>(
+            HttpMethod.Put, "orders/modifyOrder", order, ct);
 
-    //public async Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel) =>
-    //    await TradingRequestAsync<BlitzApiResponse<object>>(
-    //        HttpMethod.Delete, "orders/cancelOrder", cancel);
-
-    public async Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel)
+    public async Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default)
     {
         var query = new List<string>
     {
@@ -293,11 +299,12 @@ public class BlitzApiClient : IDisposable
         return await TradingRequestAsync<BlitzApiResponse<object>>(
             HttpMethod.Delete,
             path,
-            null);
+            null,
+            ct);
     }
-    public async Task<BlitzApiResponse<object>> SendSignalsAsync(List<SignalRequest> signals) =>
+    public async Task<BlitzApiResponse<object>> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default) =>
      await TradingRequestAsync<BlitzApiResponse<object>>(
-         HttpMethod.Post, "signals", signals);
+         HttpMethod.Post, "signals", signals, ct);
     public void Dispose() => _http.Dispose();
 
 }
