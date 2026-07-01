@@ -97,6 +97,7 @@ class Program
 
         //TestAsync("GetInstrumentDetails.ById", TestGetInstrumentDetailsById);
         //TestAsync("GetInstrumentDetails.BySymbol", TestGetInstrumentDetailsBySymbol);
+        //TestAsync("GetInstruments", TestGetInstruments);
         TestAsync("GetLTP.ByIds", TestGetLtpByIds);
         TestAsync("GetLTP.ByNames", TestGetLtpByNames);
         TestAsync("GetOptionChain", TestGetOptionChain);
@@ -104,6 +105,7 @@ class Program
         TestAsync("GetMarketQuote.ByIds", TestGetMarketQuoteByIds);
         TestAsync("GetMarketQuote.ByNames", TestGetMarketQuoteByNames);
         TestAsync("GetHistoricalData", TestGetHistoricalData);
+        TestAsync("GetOrderBook", TestGetOrderBook);
 
         Console.WriteLine();
         Console.WriteLine("── Trading ──────────────────────────────────────");
@@ -307,8 +309,33 @@ class Program
         }
     }
 
+    static async Task TestGetInstruments()
+    {
+        var result = await _client.GetInstrumentsAsync();
+        Console.WriteLine($"       status={result.Status} count={result.Data?.Count}");
+        if (result.Data != null)
+            foreach (var inst in result.Data.Take(3))
+                Console.WriteLine($"       id={inst.InstrumentId} symbol={inst.Symbol} ltp={inst.Ltp}");
+    }
+
+    static async Task TestGetOrderBook()
+    {
+        var id = XmlLongAttr("Instrument", "Id");
+        var result = await _client.GetOrderBookAsync(id);
+        Console.WriteLine($"       status={result.Status} instrumentId={result.Data?.InstrumentId}");
+        if (result.Data != null)
+        {
+            Console.WriteLine($"       bid levels={result.Data.Bid.Count} ask levels={result.Data.Ask.Count}");
+            foreach (var level in result.Data.Bid.Take(3))
+                Console.WriteLine($"       bid  price={level.Price} qty={level.Quantity} orders={level.Orders}");
+            foreach (var level in result.Data.Ask.Take(3))
+                Console.WriteLine($"       ask  price={level.Price} qty={level.Quantity} orders={level.Orders}");
+        }
+    }
+
     static async Task TestGetOrders()
     {
+
         var result = await _client.GetOrdersAsync();
         Console.WriteLine($"       status={result.Status} count={result.Data?.Count}");
         foreach (var o in (result.Data ?? []).Take(3))
