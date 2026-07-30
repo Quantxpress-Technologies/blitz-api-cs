@@ -20,6 +20,12 @@ packages/
 *.suo
 *.DotSettings.user
 
+# Logs
+*.log
+
+# Build artifacts
+QX.BlitzConnect/
+
 # OS
 Thumbs.db
 .DS_Store

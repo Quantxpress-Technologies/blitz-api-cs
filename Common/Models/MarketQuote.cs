@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace BlitzConnect.Models;
+namespace BlitzConnect.Common.Models;
 
 public class MarketQuoteEntry
 {

@@ -1,0 +1,68 @@
+{
+  "connection": {
+    "marketDataApiUrl": "https://uat.bull8.ai:7443/md-api",
+    "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
+    "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
+    "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
+    "appKey": "Bq9zGJvNrW8o6birDPY2E3rXSW2TMIzPk7RE5I1VRs",
+    "userId": "Sanajy",
+    "clientId": "Sanajy"
+  },
+  "instruments": [
+    { "id": 110010000000025, "symbol": "ADANIENT" },
+    { "id": 262090000066282, "symbol": "ADANIENT28JUL263000CE" }
+  ],
+  "marketData": {
+    "symbols": ["ADANIENT", "ADANIENT28JUL263000CE"],
+    "optionChainSymbol": "NIFTY",
+    "optionChainExpiry": "2026-07-30",
+    "optionChainRequest": "optionchain",
+    "optionChainExchangeSegment": 2,
+    "optionChainInstrumentId": 110010000000025,
+    "optionChainFallbackSymbols": ["ADANIENT", "NSEFO:ADANIENT", "NSECM:ADANIENT"],
+    "relianceOptionChainSymbol": "RELIANCE",
+    "relianceOptionChainExpiry": "2026-07-30",
+    "historicalSymbol": "ADANIENT",
+    "historicalInterval": "D"
+  },
+  "placeOrder": {
+    "quantity": 1,
+    "product": "CNC",
+    "tif": "GFD",
+    "price": 1.0,
+    "orderType": "LIMIT",
+    "orderSide": "BUY",
+    "disclosedQuantity": 0,
+    "stopPrice": 0.0,
+    "instrumentId": 110010000000025,
+    "clientId": "Sanajy"
+  },
+  "modifyOrder": {
+    "blitzOrderId": 226111752520000015,
+    "modifiedOrderQuantity": 2,
+    "price": 11.01,
+    "orderType": "LIMIT",
+    "tif": "GFD",
+    "disclosedQuantity": 0,
+    "stopPrice": 0.0,
+    "instrumentId": 110010000000025,
+    "symbol": "ADANIENT"
+  },
+  "cancelOrder": {
+    "blitzOrderId": 226111752520000020,
+    "instrumentId": 110010000000025
+  },
+  "signal": {
+    "sourceStrategy": "Bull8.AmberX1",
+    "destinationStrategy": "Matrix",
+    "sourceSID": "Bull8_SINGLE_Matrix",
+    "instanceRunningMode": "Started",
+    "globalAction": "Signal",
+    "exchangeSegment": "NSEFO",
+    "instrumentName": "ADANIENT28JUL263000CE",
+    "action": "BUY",
+    "lot": "1",
+    "infoText": "Test Signal",
+    "baseTime": "28-07-2026 09:21:00"
+  }
+}

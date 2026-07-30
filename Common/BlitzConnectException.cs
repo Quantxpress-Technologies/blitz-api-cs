@@ -1,7 +1,7 @@
 using System.Text.Json;
-using BlitzConnect.Models;
+using BlitzConnect.Common.Models;
 
-namespace BlitzConnect;
+namespace BlitzConnect.Common;
 
 public class BlitzConnectException : Exception
 {

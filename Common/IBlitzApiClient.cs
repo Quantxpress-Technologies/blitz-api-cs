@@ -1,35 +1,63 @@
-using BlitzConnect.Models;
+using System.Text.Json;
+using BlitzConnect.Common.Models;
 
-namespace BlitzConnect.Services;
+namespace BlitzConnect.Common;
 
 public interface IBlitzApiClient : IDisposable
 {
     Task LoginAsync(CancellationToken ct = default);
 
-    // Market Data
+    /// <summary>Gets instrument details by numeric ID.</summary>
     Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id, CancellationToken ct = default);
-    Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default);
-    Task<BlitzApiResponse<List<InstrumentDetail>>> GetInstrumentsAsync(CancellationToken ct = default);
-    Task<LtpResponse> GetLtpAsync(List<long> ids, CancellationToken ct = default);
-    Task<LtpResponse> GetLtpAsync(List<string> names, CancellationToken ct = default);
-    Task<OptionChainResponse> GetOptionChainAsync(string symbol, string expiryDate, CancellationToken ct = default);
-    Task<OptionChainResponse?> GetOptionChainRawAsync(object body, CancellationToken ct = default);
-    Task<MarketQuoteResponse> GetMarketQuoteAsync(List<long> ids, CancellationToken ct = default);
-    Task<MarketQuoteResponse> GetMarketQuoteAsync(List<string> names, CancellationToken ct = default);
-    Task<List<HistoricalDataItem>> GetHistoricalDataAsync(string instrument, string interval, CancellationToken ct = default);
-    Task<DepthResponse> GetOrderBookAsync(long instrumentId, CancellationToken ct = default);
 
-    // Trading (read-only)
+    /// <summary>Gets instrument details by symbol string.</summary>
+    Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default);
+
+    /// <summary>Gets all instruments (bulk).</summary>
+    Task<BlitzApiResponse<List<InstrumentDetail>>> GetInstrumentsAsync(CancellationToken ct = default);
+
+    /// <summary>Gets LTP for one or more instrument IDs.</summary>
+    Task<LtpResponse> GetLtpAsync(List<long> ids, CancellationToken ct = default);
+
+    /// <summary>Gets the option chain for a symbol/expiry.</summary>
+    Task<OptionChainResponse> GetOptionChainAsync(string symbol, string expiryDate, CancellationToken ct = default);
+
+    /// <summary>Sends a raw option-chain request body.</summary>
+    Task<OptionChainResponse?> GetOptionChainRawAsync(object body, CancellationToken ct = default);
+
+    /// <summary>Gets full market quote for instrument IDs.</summary>
+    Task<MarketQuoteResponse> GetMarketQuoteAsync(List<long> ids, CancellationToken ct = default);
+
+    /// <summary>Gets historical candle data.</summary>
+    Task<List<HistoricalDataItem>> GetHistoricalDataAsync(string instrument, string interval, CancellationToken ct = default);
+
+    /// <summary>Gets all orders (history).</summary>
     Task<OrdersResponse> GetOrdersAsync(CancellationToken ct = default);
+
+    /// <summary>Gets open orders.</summary>
     Task<OrdersResponse> GetOpenOrdersAsync(CancellationToken ct = default);
+
+    /// <summary>Gets current positions.</summary>
     Task<PositionsResponse> GetPositionsAsync(CancellationToken ct = default);
+
+    /// <summary>Gets trade history.</summary>
     Task<TradesResponse> GetTradesAsync(CancellationToken ct = default);
+
+    /// <summary>Gets a single order by BlitzOrderId.</summary>
     Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default);
+
+    /// <summary>Gets a single trade by trade ID.</summary>
     Task<BlitzApiResponse<object>> GetTradeByIdAsync(long tradeId, CancellationToken ct = default);
 
-    // Write operations
+    /// <summary>Places a new order.</summary>
     Task<BlitzApiResponse<PlaceOrderData>> PlaceOrderAsync(PlaceOrderRequest order, CancellationToken ct = default);
+
+    /// <summary>Modifies an existing order.</summary>
     Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default);
+
+    /// <summary>Cancels an order.</summary>
     Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default);
+
+    /// <summary>Sends trading signals.</summary>
     Task<BlitzApiResponse<object>> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default);
 }

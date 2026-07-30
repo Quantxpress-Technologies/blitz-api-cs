@@ -10,4 +10,17 @@
     <Compile Remove="BlitzConnectTest/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Net.Http.WinHttpHandler" Version="10.0.10" />
+    <PackageReference Include="Google.Protobuf" Version="3.30.2" />
+    <PackageReference Include="Grpc.Tools" Version="2.71.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\marketdata.proto" />
+  </ItemGroup>
+
 </Project>
