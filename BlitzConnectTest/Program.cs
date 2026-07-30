@@ -19,7 +19,7 @@ class Program
         Console.WriteLine(line);
         _logWriter.WriteLine(line);
     }
-
+    // Test SDK
     static async Task Main(string[] args)
     {
         var rootDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
