@@ -39,14 +39,14 @@ public class MarketDataWebSocket : IDisposable
         _receiveLoop = ReceiveLoopAsync(_cts.Token);
     }
 
-    public async Task SubscribeLtpAsync(IEnumerable<long> instrumentIds, CancellationToken ct = default)
+    public async Task SubscribeAsync(IEnumerable<long> instrumentIds, CancellationToken ct = default)
     {
         var ids = instrumentIds.ToList();
         foreach (var id in ids) _subscribedInstruments.Add(id);
         await SendSubscriptionAsync("subscribe", ids, ct);
     }
 
-    public async Task UnsubscribeLtpAsync(IEnumerable<long> instrumentIds, CancellationToken ct = default)
+    public async Task UnsubscribeAsync(IEnumerable<long> instrumentIds, CancellationToken ct = default)
     {
         var ids = instrumentIds.ToList();
         foreach (var id in ids) _subscribedInstruments.Remove(id);
@@ -228,7 +228,7 @@ public class MarketDataWebSocket : IDisposable
                 await ConnectAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_subscribedInstruments.Count > 0)
-                    await SubscribeLtpAsync(_subscribedInstruments, CancellationToken.None);
+                    await SubscribeAsync(_subscribedInstruments, CancellationToken.None);
 
                 return;
             }

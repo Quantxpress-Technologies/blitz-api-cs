@@ -197,9 +197,6 @@ ws.Start();
 
 // Subscribe to all order and statistics updates
 await ws.SubscribeActionAsync("AllSubscribe");
-
-// Subscribe to specific instruments
-await ws.SubscribeAsync(new List<long> { 738561, 5633 });
 ```
 
 ## Market Data WebSocket usage
@@ -236,10 +233,10 @@ ws.OnError += (err) => Console.WriteLine($"Error: {err}");
 ws.OnDisconnected += (code, reason) => Console.WriteLine($"Disconnected: {code} {reason}");
 
 await ws.ConnectAsync();
-await ws.SubscribeLtpAsync(new List<long> { 110010002000001, 110010000002885 });
+await ws.SubscribeAsync(new List<long> { 110010002000001, 110010000002885 });
 
 // Unsubscribe
-await ws.UnsubscribeLtpAsync(new List<long> { 110010000002885 });
+await ws.UnsubscribeAsync(new List<long> { 110010000002885 });
 ```
 
 ## Instrument Manager

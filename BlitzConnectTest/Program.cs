@@ -3,12 +3,14 @@ using System.Text;
 using System.Text.Json;
 using BlitzConnect.Common;
 using BlitzConnect.Common.Models;
+using BlitzConnect.Interactive;
 using BlitzConnect.MarketData;
 using Google.Protobuf;
 
 class Program
 {
     static BlitzApiClient _client = null!;
+    static BlitzConfig _config = null!;
     static TestConfig _cfg = null!;
     static int _pass;
     static int _fail;
@@ -62,6 +64,7 @@ class Program
 
         using var client = new BlitzApiClient(config);
         _client = client;
+        _config = config;
 
         Log($"Log file: {logPath}");
         Log("╔══════════════════════════════════════════════╗");
@@ -77,6 +80,12 @@ class Program
         await _client.LoginAsync();
         Log("       login OK");
 
+        Log(string.Empty);
+        Log("── Instrument Details ──────────────────────────");
+        TestAsync("GetInstrumentDetails.ById", TestGetInstrumentDetailsById);
+        TestAsync("GetInstrumentDetails.BySymbol", TestGetInstrumentDetailsBySymbol);
+        TestAsync("GetInstruments", TestGetInstruments);
+
         //Log(string.Empty);
         //Log("── Market Data ──────────────────────────────────");
         //TestAsync("GetLTP.ByIds", TestGetLtpByIds);
@@ -87,9 +96,10 @@ class Program
         //TestAsync("GetMarketQuote.ByNames", TestGetMarketQuoteByNames);
         //TestAsync("GetHistoricalData", TestGetHistoricalData);
 
-        //Log(string.Empty);
-        //Log("── WebSocket ────────────────────────────────────");
+        Log(string.Empty);
+        Log("── WebSocket ────────────────────────────────────");
         //TestAsync("InteractiveWS", TestWebSocket);
+        //TestAsync("InteractiveWS.Client", TestWebSocketClient);
 
         //Log(string.Empty);
         //Log("── Trading ──────────────────────────────────────");
@@ -97,15 +107,20 @@ class Program
         //TestAsync("GetOpenOrders", TestGetOpenOrders);
         //TestAsync("GetPositions", TestGetPositions);
         //TestAsync("GetTrades", TestGetTrades);
+        //TestAsync("GetOrderById", TestGetOrderById);
+        //TestAsync("GetTradeById", TestGetTradeById);
         //TestAsync("PlaceAndCancelCycle", TestPlaceAndCancelOrderCycle);
         //TestAsync("PlaceAndModifyCycle", TestPlaceAndModifyOrderCycle);
         //TestAsync("SendSignals", TestSendSignals);
 
         Log(string.Empty);
-        Log("── Market Data WebSocket (continuous) ────────────");
-        Log("  Press Ctrl+C to stop.");
+        Log("── Market Data WebSocket ────────────────────────");
+        TestAsync("MarketDataWS", TestMarketDataWebSocket);
+
         Log(string.Empty);
-        await TestMarketDataWebSocket();
+        Log("══════════════════════════════════════════════════");
+        Log($"RESULTS: {_pass} passed, {_fail} failed");
+        Log("══════════════════════════════════════════════════");
     }
 
     static void Test(string name, Action action)
@@ -121,6 +136,31 @@ class Program
     {
         await _client.LoginAsync();
         Log("       login OK");
+    }
+
+    static async Task TestGetInstrumentDetailsById()
+    {
+        var id = _cfg.Instruments.Select(i => i.Id).FirstOrDefault();
+        var result = await _client.GetInstrumentDetailsAsync(id);
+        Log($"       status={result.Status} id={result.Data?.InstrumentId} symbol={result.Data?.Symbol} ltp={result.Data?.Ltp}");
+    }
+
+    static async Task TestGetInstrumentDetailsBySymbol()
+    {
+        var symbol = _cfg.Instruments.Select(i => i.Symbol).FirstOrDefault();
+        var result = await _client.GetInstrumentDetailsAsync(symbol);
+        Log($"       status={result.Status} id={result.Data?.InstrumentId} symbol={result.Data?.Symbol} ltp={result.Data?.Ltp}");
+    }
+
+    static async Task TestGetInstruments()
+    {
+        var result = await _client.GetInstrumentsAsync();
+        Log($"       status={result.Status} count={result.Data?.Count}");
+        if (result.Data?.Count > 0)
+        {
+            var first = result.Data[0];
+            Log($"       first: id={first.InstrumentId} symbol={first.Symbol}");
+        }
     }
 
     static async Task TestGetLtpByIds()
@@ -238,6 +278,29 @@ class Program
     {
         var result = await _client.GetTradesAsync();
         Log($"       count={result.Count}");
+    }
+
+    static async Task TestGetOrderById()
+    {
+        var orders = await _client.GetOrdersAsync();
+        var id = orders.Data.FirstOrDefault()?.BlitzOrderId ?? _cfg.CancelOrder.BlitzOrderId;
+        var result = await _client.GetOrderByIdAsync(id);
+        Log($"       orderId={id} status={result.Status} found={result.Data != null}");
+    }
+
+    static async Task TestGetTradeById()
+    {
+        var trades = await _client.GetTradesAsync();
+        if (trades.Count == 0) { Log("       no trades to test"); return; }
+        var el = trades.Data[0];
+        long tradeId = 0;
+        if (el.TryGetProperty("tradeId", out var tid)) tradeId = tid.GetInt64();
+        else if (el.TryGetProperty("TradeId", out var tid2)) tradeId = tid2.GetInt64();
+        else if (el.TryGetProperty("blitzTradeId", out var tid3)) tradeId = tid3.GetInt64();
+        else if (el.TryGetProperty("id", out var tid4)) tradeId = tid4.GetInt64();
+        if (tradeId == 0) { Log("       no trade id found in response"); return; }
+        var result = await _client.GetTradeByIdAsync(tradeId);
+        Log($"       tradeId={tradeId} status={result.Status}");
     }
 
     static async Task TestPlaceAndModifyOrderCycle()
@@ -389,6 +452,45 @@ class Program
         Log("       closed");
     }
 
+    static async Task TestWebSocketClient()
+    {
+        var ws = new BlitzWebSocketClient(_config);
+        var connected = new TaskCompletionSource<bool>();
+        var gotMessage = new TaskCompletionSource<BlitzWsMessage>();
+        var errors = new TaskCompletionSource<Exception>();
+
+        ws.OnConnect += () => connected.TrySetResult(true);
+        ws.OnMessage += (m) => { if (!gotMessage.Task.IsCompleted) gotMessage.TrySetResult(m); };
+        ws.OnError += (e) => { if (!errors.Task.IsCompleted) errors.TrySetException(e); };
+
+        ws.Start(_client.Token);
+        Log("       starting client...");
+        await connected.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Log("       connected");
+
+        await ws.SubscribeActionAsync("AllSubscribe");
+        Log("       subscribed (AllSubscribe)");
+
+        var winner = await Task.WhenAny(gotMessage.Task, errors.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+        if (winner == gotMessage.Task)
+        {
+            var msg = await gotMessage.Task;
+            Log($"       got message type={msg.Type} code={msg.MessageCode}");
+            Log("  [PASS] InteractiveWS.Client");
+        }
+        else if (winner == errors.Task)
+        {
+            Log($"       error: {errors.Task.Exception?.InnerException?.Message}");
+        }
+        else
+        {
+            Log("       no message received within 10s");
+        }
+
+        await ws.StopAsync();
+        ws.Dispose();
+    }
+
     static async Task TestMarketDataWebSocket()
     {
         var url = $"wss://uat.bull8.ai:7443/md-streaming/ws?key={_client.Token}";
@@ -423,11 +525,11 @@ class Program
             ? _cfg.MarketData.InstrumentIds
             : _cfg.Instruments.Select(i => i.Id).Take(2).ToList();
         Log("  Subscribing...");
-        await mdWs.SubscribeLtpAsync(ids);
+        await mdWs.SubscribeAsync(ids);
         Log($"  [PASS] Subscribed to {string.Join(", ", ids)}");
 
-        Log("  Listening (press Ctrl+C to stop)...");
-
+        Log("  Listening...");
+        Log("  Streaming market data — press Ctrl+C to stop.");
         var shutdown = new TaskCompletionSource();
         Console.CancelKeyPress += (_, e) =>
         {
@@ -435,7 +537,6 @@ class Program
             Log("\n  Shutting down...");
             shutdown.TrySetResult();
         };
-
         await shutdown.Task;
 
         Log($"  [INFO] Connect count: {connectCount}");

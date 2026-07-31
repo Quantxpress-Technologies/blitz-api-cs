@@ -84,11 +84,6 @@ public class BlitzWebSocketClient : IDisposable
         await SendJsonAsync(new { action });
     }
 
-    public async Task SubscribeAsync(List<long> instrumentIds)
-    {
-        await SendJsonAsync(new { action = "subscribe", instrumentIds });
-    }
-
     public void Dispose()
     {
         _closing = true;

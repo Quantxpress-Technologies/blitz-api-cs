@@ -167,31 +167,63 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         throw new BlitzConnectException(0, "Request failed after all retries");
     }
 
-    private string InstrumentBaseUrl =>
-        !string.IsNullOrEmpty(_config.InstrumentGzUrl)
-            ? new Uri(_config.InstrumentGzUrl).GetLeftPart(UriPartial.Authority)
-            : _config.MarketDataApiUrl;
-
     private Task<T> MarketRequestAsync<T>(string path, object? body = null, string? accept = null, CancellationToken ct = default) =>
         RequestAsync<T>(body is null ? HttpMethod.Get : HttpMethod.Post,
             _config.MarketDataApiUrl, path, body, accept, MarketDataJsonOptions, ct);
 
-    private Task<T> InstrumentRequestAsync<T>(string path, CancellationToken ct = default) =>
-        RequestAsync<T>(HttpMethod.Get, InstrumentBaseUrl, path, ct: ct);
-
     private Task<T> TradingRequestAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken ct = default) =>
         RequestAsync<T>(method, _config.OrderBaseUrl, path, body, accept: null, ct: ct);
 
-    // ── Market Data ──────────────────────────────────────────────────────────
+    // ── Instruments (served from the gzipped master file) ─────────────────────
 
-    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id, CancellationToken ct = default) =>
-        await InstrumentRequestAsync<BlitzApiResponse<InstrumentDetail>>($"v1/api/instruments/{id}", ct: ct);
+    private readonly object _instrumentLock = new();
+    private BlitzInstrumentManager? _instrumentManager;
 
-    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default) =>
-        await InstrumentRequestAsync<BlitzApiResponse<InstrumentDetail>>($"v1/api/instruments/{symbol}", ct: ct);
+    private async Task<BlitzInstrumentManager> EnsureInstrumentMasterAsync(CancellationToken ct)
+    {
+        if (_instrumentManager is not null) return _instrumentManager;
 
-    public async Task<BlitzApiResponse<List<InstrumentDetail>>> GetInstrumentsAsync(CancellationToken ct = default) =>
-        await InstrumentRequestAsync<BlitzApiResponse<List<InstrumentDetail>>>("v1/api/instruments", ct: ct);
+        if (string.IsNullOrWhiteSpace(_config.InstrumentGzUrl))
+            throw new BlitzConnectException(0, "InstrumentGzUrl is not configured");
+
+        lock (_instrumentLock)
+        {
+            if (_instrumentManager is not null) return _instrumentManager;
+        }
+
+        var manager = new BlitzInstrumentManager();
+        await manager.LoadInstrumentsAsync(_config.InstrumentGzUrl, _token, ct);
+
+        lock (_instrumentLock)
+        {
+            _instrumentManager ??= manager;
+        }
+        return _instrumentManager;
+    }
+
+    public async Task<BlitzApiResponse<List<InstrumentDetail>>> GetInstrumentsAsync(CancellationToken ct = default)
+    {
+        var manager = await EnsureInstrumentMasterAsync(ct);
+        return new BlitzApiResponse<List<InstrumentDetail>> { Status = "success", Data = manager.GetAll().ToList() };
+    }
+
+    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id, CancellationToken ct = default)
+    {
+        var manager = await EnsureInstrumentMasterAsync(ct);
+        var detail = manager.GetById(id);
+        return detail is null
+            ? new BlitzApiResponse<InstrumentDetail> { Status = "error", Message = $"Instrument not found: {id}" }
+            : new BlitzApiResponse<InstrumentDetail> { Status = "success", Data = detail };
+    }
+
+    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default)
+    {
+        var manager = await EnsureInstrumentMasterAsync(ct);
+        var detail = manager.GetBySymbol(symbol);
+        return detail is null
+            ? new BlitzApiResponse<InstrumentDetail> { Status = "error", Message = $"Instrument not found: {symbol}" }
+            : new BlitzApiResponse<InstrumentDetail> { Status = "success", Data = detail };
+    }
 
     public async Task<LtpResponse> GetLtpAsync(List<long> ids, CancellationToken ct = default) =>
         await MarketRequestAsync<LtpResponse>("marketfeed/ltp", new { InstrumentIds = ids }, ct: ct);

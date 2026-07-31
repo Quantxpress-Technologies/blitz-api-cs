@@ -4,9 +4,9 @@
     "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
     "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
     "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
-    "appKey": "Bq9zGJvNrW8o6birDPY2E3rXSW2TMIzPk7RE5I1VRs",
-    "userId": "Sanajy",
-    "clientId": "Sanajy"
+    "appKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
+    "userId": "Prateek123",
+    "clientId": "Prateek123"
   },
   "instruments": [
     { "id": 110010000000025, "symbol": "ADANIENT" },

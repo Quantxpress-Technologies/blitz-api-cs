@@ -7,7 +7,7 @@ public class BlitzConfig
     public string MarketDataApiUrl { get; init; } = "https://uat.bull8.ai:7443/md-api";
     public string InteractiveWsUrl { get; init; } = "wss://uat.bull8.ai:7443/ws";
     public string MarketDataWsUrl { get; init; } = "wss://uat.bull8.ai:7443/md-streaming/ws?key=";
-    public string InstrumentGzUrl { get; init; } = "";
+    public string InstrumentGzUrl { get; init; } = "https://uat.bull8.ai:7443/v1/api/instruments/gz/download";
     public string AppKey { get; init; } = "";
     public string UserId { get; init; } = "";
     public string ClientId { get; init; } = "";
