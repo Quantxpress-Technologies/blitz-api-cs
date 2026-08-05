@@ -4,6 +4,8 @@
     "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
     "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
     "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
+    "marketDataWsUrl": "wss://uat.bull8.ai:7443/md-streaming/ws",
+    "instrumentGzUrl": "https://uat.bull8.ai:7443/v1/api/instruments/gz/download",
     "appKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
     "userId": "Prateek123",
     "clientId": "Prateek123"
@@ -35,7 +37,7 @@
     "disclosedQuantity": 0,
     "stopPrice": 0.0,
     "instrumentId": 110010000000025,
-    "clientId": "Sanajy"
+    "clientId": "Prateek123"
   },
   "modifyOrder": {
     "blitzOrderId": 226111752520000015,
