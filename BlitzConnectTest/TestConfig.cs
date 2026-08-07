@@ -11,6 +11,7 @@ class TestConfig
     public TestModifyOrder ModifyOrder { get; set; } = new();
     public TestCancelOrder CancelOrder { get; set; } = new();
     public TestSignal Signal { get; set; } = new();
+    public TestStatistics Statistics { get; set; } = new();
 }
 
 class TestConnection
@@ -60,7 +61,6 @@ class TestPlaceOrder
     public int DisclosedQuantity { get; set; }
     public double StopPrice { get; set; }
     public long InstrumentId { get; set; }
-    public string ClientId { get; set; } = "";
 }
 
 class TestModifyOrder
@@ -95,4 +95,10 @@ class TestSignal
     public string Lot { get; set; } = "";
     public string InfoText { get; set; } = "";
     public string BaseTime { get; set; } = "";
+}
+
+class TestStatistics
+{
+    public string StrategyName { get; set; } = "";
+    public string StrategyInstanceName { get; set; } = "";
 }

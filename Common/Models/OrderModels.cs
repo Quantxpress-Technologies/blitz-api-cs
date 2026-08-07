@@ -80,16 +80,17 @@ public class OrdersResponse
     public int Count => Data.Count;
 }
 
-/// <summary>Wraps a positions response. The server returns an empty object or array.</summary>
-public class PositionsResponse
-{
-    public List<JsonElement> Data { get; init; } = [];
-    public int Count => Data.Count;
-}
-
 /// <summary>Wraps a trades response. The server returns a bare JSON array.</summary>
 public class TradesResponse
 {
     public List<JsonElement> Data { get; init; } = [];
     public int Count => Data.Count;
+}
+
+/// <summary>Standard gateway envelope returned by write operations.</summary>
+public class GatewayResponse
+{
+    public string? Status { get; init; }
+    public string? Message { get; init; }
+    public JsonElement? Data { get; init; }
 }

@@ -42,7 +42,9 @@ static class TestContext
     public static async Task InitAsync()
     {
         var rootDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-        var logPath = Path.Combine(rootDir, $"blitz-test-{System.DateTime.Now:yyyyMMdd-HHmmss}.log");
+        var logsDir = Path.Combine(rootDir, "logs");
+        Directory.CreateDirectory(logsDir);
+        var logPath = Path.Combine(logsDir, $"blitz-test-{System.DateTime.Now:yyyyMMdd-HHmmss}.log");
         _logWriter = new StreamWriter(logPath, append: false, encoding: Encoding.UTF8) { AutoFlush = true };
 
         var jsonPath = Path.Combine(rootDir, "test-config.json");

@@ -14,7 +14,8 @@ static class InteractiveApiTests
         TestContext.TestAsync("GetPositions", GetPositions);
         TestContext.TestAsync("GetTrades", GetTrades);
         TestContext.TestAsync("GetOrderById", GetOrderById);
-        TestContext.TestAsync("GetTradeById", GetTradeById);
+        TestContext.TestAsync("GetStatistics", GetStatistics);
+        TestContext.TestAsync("GetStatisticsByInstance", GetStatisticsByInstance);
         TestContext.TestAsync("PlaceAndCancelCycle", PlaceAndCancelOrderCycle);
         TestContext.TestAsync("PlaceAndModifyCycle", PlaceAndModifyOrderCycle);
         TestContext.TestAsync("SendSignals", SendSignals);
@@ -39,7 +40,9 @@ static class InteractiveApiTests
     static async Task GetPositions()
     {
         var result = await TestContext.Client.GetPositionsAsync();
-        TestContext.Log($"       count={result.Count}");
+        TestContext.Log($"       clients={result.Count}");
+        foreach (var kv in result.Data.Take(3))
+            TestContext.Log($"       client={kv.Key} rows={kv.Value.Count}");
     }
 
     static async Task GetTrades()
@@ -56,19 +59,20 @@ static class InteractiveApiTests
         TestContext.Log($"       orderId={id} status={result.Status} found={result.Data != null}");
     }
 
-    static async Task GetTradeById()
+    static async Task GetStatistics()
     {
-        var trades = await TestContext.Client.GetTradesAsync();
-        if (trades.Count == 0) { TestContext.Log("       no trades to test"); return; }
-        var el = trades.Data[0];
-        long tradeId = 0;
-        if (el.TryGetProperty("tradeId", out var tid)) tradeId = tid.GetInt64();
-        else if (el.TryGetProperty("TradeId", out var tid2)) tradeId = tid2.GetInt64();
-        else if (el.TryGetProperty("blitzTradeId", out var tid3)) tradeId = tid3.GetInt64();
-        else if (el.TryGetProperty("id", out var tid4)) tradeId = tid4.GetInt64();
-        if (tradeId == 0) { TestContext.Log("       no trade id found in response"); return; }
-        var result = await TestContext.Client.GetTradeByIdAsync(tradeId);
-        TestContext.Log($"       tradeId={tradeId} status={result.Status}");
+        var result = await TestContext.Client.GetStatisticsAsync();
+        TestContext.Log($"       count={result.Count}");
+    }
+
+    static async Task GetStatisticsByInstance()
+    {
+        var result = await TestContext.Client.GetStatisticsByInstanceAsync(
+            TestContext.Cfg.Statistics.StrategyName,
+            TestContext.Cfg.Statistics.StrategyInstanceName);
+        TestContext.Log($"       clients={result.Count}");
+        foreach (var kv in result.Data.Take(3))
+            TestContext.Log($"       client={kv.Key} rows={kv.Value.Count}");
     }
 
     static async Task PlaceAndModifyOrderCycle()
@@ -85,10 +89,10 @@ static class InteractiveApiTests
             Price = placePrice, OrderType = po.OrderType, OrderSide = po.OrderSide,
             DisclosedQuantity = po.DisclosedQuantity, StopPrice = po.StopPrice,
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = po.InstrumentId, ClientId = po.ClientId,
+            InstrumentId = po.InstrumentId, ClientId = TestContext.Cfg.Connection.ClientId ?? "",
         });
         TestContext.Log($"       place status={placeResult.Status} message={placeResult.Message}");
-        if (placeResult.Data is null) { TestContext.Log("       no data, skip modify"); return; }
+        if (placeResult.Data is null) { TestContext.Log($"       no data, skip modify"); return; }
 
         var orderId = placeResult.Data.BlitzOrderId;
         TestContext.Log($"       placed orderId={orderId} price={placePrice}");
@@ -113,10 +117,10 @@ static class InteractiveApiTests
             Price = po.Price, OrderType = po.OrderType, OrderSide = po.OrderSide,
             DisclosedQuantity = po.DisclosedQuantity, StopPrice = po.StopPrice,
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = po.InstrumentId, ClientId = po.ClientId,
+            InstrumentId = po.InstrumentId, ClientId = TestContext.Cfg.Connection.ClientId ?? "",
         });
         TestContext.Log($"       place status={placeResult.Status} message={placeResult.Message}");
-        if (placeResult.Data is null) { TestContext.Log("       no data, skip cancel"); return; }
+        if (placeResult.Data is null) { TestContext.Log($"       no data, skip cancel"); return; }
 
         var cancelResult = await TestContext.Client.CancelOrderAsync(new CancelOrderRequest
         {

@@ -33,14 +33,17 @@ public class BlitzInteractiveApiClient
         _inner.GetTradesAsync(ct);
     public Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default) =>
         _inner.GetOrderByIdAsync(blitzOrderId, ct);
-    public Task<BlitzApiResponse<object>> GetTradeByIdAsync(long tradeId, CancellationToken ct = default) =>
-        _inner.GetTradeByIdAsync(tradeId, ct);
+    public Task<StrategyStatisticsResponse> GetStatisticsAsync(CancellationToken ct = default) =>
+        _inner.GetStatisticsAsync(ct);
+    public Task<StrategyInstanceStatisticsResponse> GetStatisticsByInstanceAsync(
+        string strategyName, string strategyInstanceName, CancellationToken ct = default) =>
+        _inner.GetStatisticsByInstanceAsync(strategyName, strategyInstanceName, ct);
     public Task<BlitzApiResponse<PlaceOrderData>> PlaceOrderAsync(PlaceOrderRequest order, CancellationToken ct = default) =>
         _inner.PlaceOrderAsync(order, ct);
     public Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
         _inner.ModifyOrderAsync(order, ct);
-    public Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default) =>
+    public Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default) =>
         _inner.CancelOrderAsync(cancel, ct);
-    public Task<BlitzApiResponse<object>> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default) =>
+    public Task<GatewayResponse> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default) =>
         _inner.SendSignalsAsync(signals, ct);
 }

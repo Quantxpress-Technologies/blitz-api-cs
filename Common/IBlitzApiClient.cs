@@ -46,8 +46,12 @@ public interface IBlitzApiClient : IDisposable
     /// <summary>Gets a single order by BlitzOrderId.</summary>
     Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default);
 
-    /// <summary>Gets a single trade by trade ID.</summary>
-    Task<BlitzApiResponse<object>> GetTradeByIdAsync(long tradeId, CancellationToken ct = default);
+    /// <summary>Gets strategy statistics for the current user.</summary>
+    Task<StrategyStatisticsResponse> GetStatisticsAsync(CancellationToken ct = default);
+
+    /// <summary>Gets client strategy-instance-level statistics grouped by client.</summary>
+    Task<StrategyInstanceStatisticsResponse> GetStatisticsByInstanceAsync(
+        string strategyName, string strategyInstanceName, CancellationToken ct = default);
 
     /// <summary>Places a new order.</summary>
     Task<BlitzApiResponse<PlaceOrderData>> PlaceOrderAsync(PlaceOrderRequest order, CancellationToken ct = default);
@@ -56,8 +60,8 @@ public interface IBlitzApiClient : IDisposable
     Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default);
 
     /// <summary>Cancels an order.</summary>
-    Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default);
+    Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default);
 
     /// <summary>Sends trading signals.</summary>
-    Task<BlitzApiResponse<object>> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default);
+    Task<GatewayResponse> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default);
 }

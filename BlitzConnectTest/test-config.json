@@ -1,43 +1,42 @@
 {
   "connection": {
-    "marketDataApiUrl": "https://uat.bull8.ai:7443/md-api",
-    "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
-    "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
-    "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
-    "marketDataWsUrl": "wss://uat.bull8.ai:7443/md-streaming/ws",
-    "instrumentGzUrl": "https://uat.bull8.ai:7443/v1/api/instruments/gz/download",
-    "appKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
-    "userId": "Prateek123",
-    "clientId": "Prateek123"
+    "marketDataApiUrl": "http://uat.quantxpress.com/md-api",
+    "authBaseUrl": "http://uat.quantxpress.com/api_gateway/v1",
+    "orderBaseUrl": "http://localhost:5294/api/v1",
+    "interactiveWsUrl": "ws://localhost:5294/ws",
+    "marketDataWsUrl": "ws://uat.quantxpress.com/md-streaming/ws",
+    "instrumentGzUrl": "http://uat.quantxpress.com/v1/api/instruments/gz/download",
+    "appKey": "CPXotUwWdlIpgJbYrguSnVyu05IZaws1HjwKaXKNQ",
+    "userId": "Algo123",
+    "clientId": "Algo123"
   },
   "instruments": [
-    { "id": 110010000000025, "symbol": "ADANIENT" },
-    { "id": 262090000066282, "symbol": "ADANIENT28JUL263000CE" }
+    { "id": 110010000014366, "symbol": "IDEA" }
+    
   ],
   "marketData": {
-    "symbols": ["ADANIENT", "ADANIENT28JUL263000CE"],
+    "symbols": ["IDEA", "IDEA28JUL263000CE"],
     "optionChainSymbol": "NIFTY",
-    "optionChainExpiry": "2026-07-30",
+    "optionChainExpiry": "2026-09-01",
     "optionChainRequest": "optionchain",
     "optionChainExchangeSegment": 2,
-    "optionChainInstrumentId": 110010000000025,
-    "optionChainFallbackSymbols": ["ADANIENT", "NSEFO:ADANIENT", "NSECM:ADANIENT"],
+    "optionChainInstrumentId": 110010000014366,
+    "optionChainFallbackSymbols": ["IDEA", "NSEFO:IDEA", "NSECM:IDEA"],
     "relianceOptionChainSymbol": "RELIANCE",
-    "relianceOptionChainExpiry": "2026-07-30",
-    "historicalSymbol": "ADANIENT",
+    "relianceOptionChainExpiry": "2026-09-01",
+    "historicalSymbol": "IDEA",
     "historicalInterval": "D"
   },
   "placeOrder": {
     "quantity": 1,
-    "product": "CNC",
+    "product": "MIS",
     "tif": "GFD",
-    "price": 1.0,
+    "price": 11,
     "orderType": "LIMIT",
     "orderSide": "BUY",
     "disclosedQuantity": 0,
     "stopPrice": 0.0,
-    "instrumentId": 110010000000025,
-    "clientId": "Prateek123"
+    "instrumentId": 110010000014366
   },
   "modifyOrder": {
     "blitzOrderId": 226111752520000015,
@@ -47,12 +46,12 @@
     "tif": "GFD",
     "disclosedQuantity": 0,
     "stopPrice": 0.0,
-    "instrumentId": 110010000000025,
-    "symbol": "ADANIENT"
+    "instrumentId": 110010000014366,
+    "symbol": "IDEA"
   },
   "cancelOrder": {
     "blitzOrderId": 226111752520000020,
-    "instrumentId": 110010000000025
+    "instrumentId": 110010000014366
   },
   "signal": {
     "sourceStrategy": "Bull8.AmberX1",
@@ -61,10 +60,14 @@
     "instanceRunningMode": "Started",
     "globalAction": "Signal",
     "exchangeSegment": "NSEFO",
-    "instrumentName": "ADANIENT28JUL263000CE",
-    "action": "BUY",
-    "lot": "1",
-    "infoText": "Test Signal",
+    "instrumentName": "NIFTY10FEB2625550PE",
+    "action": "ENTERLONG",
+    "lot": "27",
+    "infoText": "Test signal",
     "baseTime": "28-07-2026 09:21:00"
+  },
+  "statistics": {
+    "strategyName": "Manual Trading",
+    "strategyInstanceName": "NSECM|RELIANCE"
   }
 }

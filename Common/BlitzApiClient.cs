@@ -267,6 +267,12 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
     public async Task<PositionsResponse> GetPositionsAsync(CancellationToken ct = default)
     {
         var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, "positions", ct: ct);
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, List<Position>>>(el.GetRawText(), JsonOptions)
+                       ?? new Dictionary<string, List<Position>>();
+            return new PositionsResponse { Data = dict };
+        }
         return new PositionsResponse();
     }
 
@@ -287,10 +293,34 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         return new BlitzApiResponse<OrderEntry> { Status = "success", Data = entry };
     }
 
-    public async Task<BlitzApiResponse<object>> GetTradeByIdAsync(long tradeId, CancellationToken ct = default)
+    public async Task<StrategyStatisticsResponse> GetStatisticsAsync(CancellationToken ct = default)
     {
-        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, $"orders/trades/{tradeId}", ct: ct);
-        return new BlitzApiResponse<object> { Status = "success" };
+        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, "strategy/statistics", ct: ct);
+        return el.ValueKind == JsonValueKind.Array
+            ? new StrategyStatisticsResponse { Data = JsonSerializer.Deserialize<List<StrategyStatistics>>(el.GetRawText(), JsonOptions) ?? [] }
+            : new StrategyStatisticsResponse();
+    }
+
+    public async Task<StrategyInstanceStatisticsResponse> GetStatisticsByInstanceAsync(
+        string strategyName, string strategyInstanceName, CancellationToken ct = default)
+    {
+        var query = new List<string>
+        {
+            $"strategyName={Uri.EscapeDataString(strategyName)}",
+            $"strategyInstanceName={Uri.EscapeDataString(strategyInstanceName)}"
+        };
+
+        var el = await TradingRequestAsync<JsonElement>(
+            HttpMethod.Get, $"strategy/statistics/instance?{string.Join("&", query)}", null, ct);
+
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, List<StrategyStatistics>>>(el.GetRawText(), JsonOptions)
+                       ?? new Dictionary<string, List<StrategyStatistics>>();
+            return new StrategyInstanceStatisticsResponse { Data = dict };
+        }
+
+        return new StrategyInstanceStatisticsResponse();
     }
 
     // ── Write operations ─────────────────────────────────────────────────────
@@ -299,22 +329,11 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         await TradingRequestAsync<BlitzApiResponse<PlaceOrderData>>(
             HttpMethod.Post, "orders/placeOrder", order, ct);
 
-    public async Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default)
-    {
-        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Put, "orders/modifyOrder", order, ct: ct);
-        var text = el.GetRawText();
-        try
-        {
-            return JsonSerializer.Deserialize<BlitzApiResponse<PlaceOrderData>>(text, JsonOptions)
-                   ?? new BlitzApiResponse<PlaceOrderData> { Status = "success" };
-        }
-        catch (JsonException)
-        {
-            return new BlitzApiResponse<PlaceOrderData> { Status = text };
-        }
-    }
+    public async Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
+        await TradingRequestAsync<BlitzApiResponse<PlaceOrderData>>(
+            HttpMethod.Put, "orders/modifyOrder", order, ct);
 
-    public async Task<BlitzApiResponse<object>> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default)
+    public async Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default)
     {
         var query = new List<string> { $"blitzOrderId={cancel.BlitzOrderId}" };
         if (cancel.InstrumentId.HasValue)
@@ -322,14 +341,10 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         if (!string.IsNullOrWhiteSpace(cancel.Symbol))
             query.Add($"symbol={Uri.EscapeDataString(cancel.Symbol)}");
 
-        var el = await TradingRequestAsync<JsonElement>(
+        return await TradingRequestAsync<GatewayResponse>(
             HttpMethod.Delete, $"orders/cancelOrder?{string.Join("&", query)}", null, ct);
-        return new BlitzApiResponse<object> { Status = "success", Data = el.GetRawText() };
     }
 
-    public async Task<BlitzApiResponse<object>> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default)
-    {
-        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Post, "signals", signals, ct);
-        return new BlitzApiResponse<object> { Status = "success", Data = el.GetRawText() };
-    }
+    public async Task<GatewayResponse> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default) =>
+        await TradingRequestAsync<GatewayResponse>(HttpMethod.Post, "signals", signals, ct);
 }
