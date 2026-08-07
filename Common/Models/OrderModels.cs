@@ -73,6 +73,14 @@ public class PlaceOrderData
     public string? CorrelationOrderId { get; init; }
 }
 
+/// <summary>Envelope returned by the modify-order endpoint. Data carries a server message string.</summary>
+public class ModifyOrderResponse
+{
+    public string Status { get; init; } = "";
+    public string? Message { get; init; }
+    public string? Data { get; init; }
+}
+
 /// <summary>Wraps an order list response. The server returns a bare JSON array.</summary>
 public class OrdersResponse
 {

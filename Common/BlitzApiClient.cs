@@ -329,8 +329,8 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         await TradingRequestAsync<BlitzApiResponse<PlaceOrderData>>(
             HttpMethod.Post, "orders/placeOrder", order, ct);
 
-    public async Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
-        await TradingRequestAsync<BlitzApiResponse<PlaceOrderData>>(
+    public async Task<ModifyOrderResponse> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
+        await TradingRequestAsync<ModifyOrderResponse>(
             HttpMethod.Put, "orders/modifyOrder", order, ct);
 
     public async Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default)

@@ -104,7 +104,7 @@ static class InteractiveApiTests
             OrderType = po.OrderType, Tif = po.Tif, TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
             InstrumentId = po.InstrumentId, Symbol = null,
         });
-        TestContext.Log($"       modify status={modifyResult.Status} message={modifyResult.Message}");
+        TestContext.Log($"       modify status={modifyResult.Status} message={modifyResult.Message} data={modifyResult.Data}");
     }
 
     static async Task PlaceAndCancelOrderCycle()

@@ -57,7 +57,7 @@ public interface IBlitzApiClient : IDisposable
     Task<BlitzApiResponse<PlaceOrderData>> PlaceOrderAsync(PlaceOrderRequest order, CancellationToken ct = default);
 
     /// <summary>Modifies an existing order.</summary>
-    Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default);
+    Task<ModifyOrderResponse> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default);
 
     /// <summary>Cancels an order.</summary>
     Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default);
