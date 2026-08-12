@@ -52,21 +52,13 @@ static class MarketDataApiTests
     static async Task GetLtpByIds()
     {
         var ids = TestContext.Cfg.Instruments.Select(i => i.Id).Take(2).ToList();
-        var result = await TestContext.Client.GetLtpAsync(ids);
-        TestContext.Log($"       status={result.Status} keys: {string.Join(", ", result.Data?.Keys ?? Enumerable.Empty<string>())}");
-        if (result.Data != null)
-            foreach (var (k, v) in result.Data)
-                TestContext.Log($"       {k}: LTP={v.Ltp}");
+        TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/ltp", new { InstrumentIds = ids }));
     }
 
     static async Task GetLtpByNames()
     {
         var ids = TestContext.Cfg.Instruments.Select(i => i.Id).Take(2).ToList();
-        var result = await TestContext.Client.GetLtpAsync(ids);
-        TestContext.Log($"       status={result.Status} keys: {string.Join(", ", result.Data?.Keys ?? Enumerable.Empty<string>())}");
-        if (result.Data != null)
-            foreach (var (k, v) in result.Data)
-                TestContext.Log($"       {k}: LTP={v.Ltp}");
+        TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/ltp", new { InstrumentIds = ids }));
     }
 
     static async Task GetOptionChain()
@@ -79,21 +71,23 @@ static class MarketDataApiTests
             exchangeSegment = md.OptionChainExchangeSegment,
             instrumentId = md.OptionChainInstrumentId,
         };
-        var result = await TestContext.Client.GetOptionChainRawAsync(body);
-        if (result == null)
+        try
+        {
+            TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/optionchain", body));
+        }
+        catch
         {
             foreach (var fallback in md.OptionChainFallbackSymbols)
             {
                 var fbBody = new { symbol = fallback, expiryDate = md.OptionChainExpiry, exchangeSegment = md.OptionChainExchangeSegment, instrumentId = md.OptionChainInstrumentId };
-                result = await TestContext.Client.GetOptionChainRawAsync(fbBody);
-                if (result != null) break;
+                try
+                {
+                    TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/optionchain", fbBody));
+                    return;
+                }
+                catch { }
             }
-        }
-        TestContext.Log($"       spot={result?.Data?.SpotPrice} expiry={result?.Data?.ExpiryDate} chains={result?.Data?.Chains.Count}");
-        if (result?.Data?.Chains.Count > 0)
-        {
-            var first = result.Data.Chains[0];
-            TestContext.Log($"       strike={first.StrikePrice} callLTP={first.CallOption?.Ltp} putLTP={first.PutOption?.Ltp}");
+            throw;
         }
     }
 
@@ -101,42 +95,25 @@ static class MarketDataApiTests
     {
         var md = TestContext.Cfg.MarketData;
         var body = new { symbol = "NIFTY", expiryDate = md.RelianceOptionChainExpiry, exchangeSegment = md.OptionChainExchangeSegment, instrumentId = md.OptionChainInstrumentId };
-        var result = await TestContext.Client.GetOptionChainRawAsync(body);
-        TestContext.Log($"       Spot={result?.Data?.SpotPrice} Expiry={result?.Data?.ExpiryDate} ATM={result?.Data?.Atm}");
-        var chains = result?.Data?.Chains ?? [];
-        var atmEntry = chains.FirstOrDefault(c => Math.Abs(c.StrikePrice - (result?.Data?.Atm ?? 0)) < 0.01);
-        if (atmEntry == null) { TestContext.Log("       No ATM entry found"); return; }
-        var callP = atmEntry.CallOption?.Price ?? atmEntry.CallOption?.Ltp ?? 0;
-        var putP  = atmEntry.PutOption?.Price  ?? atmEntry.PutOption?.Ltp  ?? 0;
-        TestContext.Log($"       Strike={atmEntry.StrikePrice} Call={callP} Put={putP} Straddle={callP + putP}");
+        TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/optionchain", body));
     }
 
     static async Task GetMarketQuoteByIds()
     {
         var ids = TestContext.Cfg.Instruments.Select(i => i.Id).ToList();
-        var result = await TestContext.Client.GetMarketQuoteAsync(ids);
-        TestContext.Log($"       status={result.Status} entries={result.Data?.Count}");
-        if (result.Data != null)
-            foreach (var (k, v) in result.Data.Take(3))
-                TestContext.Log($"       {k}: LTP={v.Ltp} OI={v.Oi} Vol={v.Vtt}");
+        TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/quote", new { InstrumentIds = ids }));
     }
 
     static async Task GetMarketQuoteByNames()
     {
         var ids = TestContext.Cfg.Instruments.Select(i => i.Id).ToList();
-        var result = await TestContext.Client.GetMarketQuoteAsync(ids);
-        TestContext.Log($"       status={result.Status} entries={result.Data?.Count}");
+        TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/quote", new { InstrumentIds = ids }));
     }
 
     static async Task GetHistoricalData()
     {
         var md = TestContext.Cfg.MarketData;
-        var result = await TestContext.Client.GetHistoricalDataAsync(md.HistoricalSymbol, md.HistoricalInterval);
-        TestContext.Log($"       got {result.Count} candles");
-        if (result.Count > 0)
-        {
-            var last = result[^1];
-            TestContext.Log($"       latest: O={last.Open} H={last.High} L={last.Low} C={last.Close} V={last.Volume} @ {last.Timestamp}");
-        }
+        TestContext.Raw(await TestContext.Client.MarketDataRawAsync("marketfeed/historicalData",
+            new { Instrument = md.HistoricalSymbol, interval = md.HistoricalInterval }, accept: "*/*"));
     }
 }

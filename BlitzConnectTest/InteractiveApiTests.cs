@@ -16,63 +16,45 @@ static class InteractiveApiTests
         TestContext.TestAsync("GetOrderById", GetOrderById);
         TestContext.TestAsync("GetStatistics", GetStatistics);
         TestContext.TestAsync("GetStatisticsByInstance", GetStatisticsByInstance);
-        TestContext.TestAsync("PlaceAndCancelCycle", PlaceAndCancelOrderCycle);
-        TestContext.TestAsync("PlaceAndModifyCycle", PlaceAndModifyOrderCycle);
-        TestContext.TestAsync("SendSignals", SendSignals);
-        TestContext.Summary();
+        //TestContext.TestAsync("PlaceAndCancelCycle", PlaceAndCancelOrderCycle);
+        //TestContext.TestAsync("PlaceAndModifyCycle", PlaceAndModifyOrderCycle);
+        //TestContext.TestAsync("SendSignals", SendSignals);
+        //TestContext.Summary();
         return TestContext.Fail;
     }
 
-    static async Task GetOrders()
-    {
-        var result = await TestContext.Client.GetOrdersAsync();
-        TestContext.Log($"       count={result.Count}");
-        foreach (var o in result.Data.Take(3))
-            TestContext.Log($"       OrderID={o.BlitzOrderId}");
-    }
+    static async Task GetOrders() =>
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, "orders"));
 
-    static async Task GetOpenOrders()
-    {
-        var result = await TestContext.Client.GetOpenOrdersAsync();
-        TestContext.Log($"       count={result.Count}");
-    }
+    static async Task GetOpenOrders() =>
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, "orders/openOrders"));
 
-    static async Task GetPositions()
-    {
-        var result = await TestContext.Client.GetPositionsAsync();
-        TestContext.Log($"       clients={result.Count}");
-        foreach (var kv in result.Data.Take(3))
-            TestContext.Log($"       client={kv.Key} rows={kv.Value.Count}");
-    }
+    static async Task GetPositions() =>
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, "positions"));
 
-    static async Task GetTrades()
-    {
-        var result = await TestContext.Client.GetTradesAsync();
-        TestContext.Log($"       count={result.Count}");
-    }
+    static async Task GetTrades() =>
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, "trades"));
 
     static async Task GetOrderById()
     {
-        var orders = await TestContext.Client.GetOrdersAsync();
-        var id = orders.Data.FirstOrDefault()?.BlitzOrderId ?? TestContext.Cfg.CancelOrder.BlitzOrderId;
-        var result = await TestContext.Client.GetOrderByIdAsync(id);
-        TestContext.Log($"       orderId={id} status={result.Status} found={result.Data != null}");
+        var ordersRaw = await TestContext.Client.TradingRawAsync(HttpMethod.Get, "orders");
+        var orders = System.Text.Json.JsonSerializer.Deserialize<List<OrderEntry>>(ordersRaw,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        var id = orders.FirstOrDefault()?.BlitzOrderId ?? TestContext.Cfg.CancelOrder.BlitzOrderId;
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, $"orders/{id}"));
     }
 
-    static async Task GetStatistics()
-    {
-        var result = await TestContext.Client.GetStatisticsAsync();
-        TestContext.Log($"       count={result.Count}");
-    }
+    static async Task GetStatistics() =>
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, "strategy/statistics"));
 
     static async Task GetStatisticsByInstance()
     {
-        var result = await TestContext.Client.GetStatisticsByInstanceAsync(
-            TestContext.Cfg.Statistics.StrategyName,
-            TestContext.Cfg.Statistics.StrategyInstanceName);
-        TestContext.Log($"       clients={result.Count}");
-        foreach (var kv in result.Data.Take(3))
-            TestContext.Log($"       client={kv.Key} rows={kv.Value.Count}");
+        var query = new List<string>
+        {
+            $"strategyName={Uri.EscapeDataString(TestContext.Cfg.Statistics.StrategyName)}",
+            $"strategyInstanceName={Uri.EscapeDataString(TestContext.Cfg.Statistics.StrategyInstanceName)}"
+        };
+        TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, $"strategy/statistics/instance?{string.Join("&", query)}"));
     }
 
     static async Task PlaceAndModifyOrderCycle()

@@ -50,6 +50,9 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         _http.Dispose();
     }
 
+    /// <summary>Raw login response body exactly as the server sent it (set after LoginAsync).</summary>
+    public string? LastLoginRawResponse { get; private set; }
+
     /// <summary>Authenticates with the API server and stores the access token.</summary>
     public async Task LoginAsync(CancellationToken ct = default)
     {
@@ -57,7 +60,9 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         var payload = new { appKey = _config.AppKey, userId = _config.UserId };
 
         var resp = await _http.PostAsJsonAsync(url, payload, ct);
-        var body = await resp.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions, ct)
+        var text = await resp.Content.ReadAsStringAsync(ct);
+        LastLoginRawResponse = text;
+        var body = JsonSerializer.Deserialize<LoginResponse>(text, JsonOptions)
                    ?? throw new BlitzConnectException((int)resp.StatusCode, "Empty login response");
 
         if (resp.StatusCode != HttpStatusCode.OK || body.Status != "success")
@@ -78,8 +83,8 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {_token}");
     }
 
-    /// <summary>Sends an HTTP request and deserializes the response.</summary>
-    protected async Task<T> RequestAsync<T>(
+    /// <summary>Sends an HTTP request and returns the raw response body exactly as received from the server.</summary>
+    protected async Task<string> RequestTextAsync(
         HttpMethod method, string baseUrl, string path,
         object? body = null, string? accept = null,
         JsonSerializerOptions? serializeOptions = null,
@@ -143,28 +148,37 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
                         (int)response.StatusCode, "Empty response from server");
                 }
 
-                if (text.TrimStart().StartsWith('"'))
-                {
-                    text = JsonSerializer.Deserialize<string>(text) ?? text;
-                }
-
-                try
-                {
-                    return JsonSerializer.Deserialize<T>(text, JsonOptions)
-                        ?? throw new BlitzConnectException(
-                            (int)response.StatusCode, "Deserialization returned null");
-                }
-                catch (JsonException ex)
-                {
-                    throw new BlitzConnectException(
-                        (int)response.StatusCode,
-                        $"JSON deserialization failed for type {typeof(T).Name}",
-                        ex, text);
-                }
+                return text;
             }
         }
 
         throw new BlitzConnectException(0, "Request failed after all retries");
+    }
+
+    /// <summary>Sends an HTTP request and deserializes the response.</summary>
+    protected async Task<T> RequestAsync<T>(
+        HttpMethod method, string baseUrl, string path,
+        object? body = null, string? accept = null,
+        JsonSerializerOptions? serializeOptions = null,
+        CancellationToken ct = default)
+    {
+        var text = await RequestTextAsync(method, baseUrl, path, body, accept, serializeOptions, ct);
+
+        if (text.TrimStart().StartsWith('"'))
+        {
+            text = JsonSerializer.Deserialize<string>(text) ?? text;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(text, JsonOptions)
+                ?? throw new BlitzConnectException(0, "Deserialization returned null");
+        }
+        catch (JsonException ex)
+        {
+            throw new BlitzConnectException(
+                0, $"JSON deserialization failed for type {typeof(T).Name}", ex, text);
+        }
     }
 
     private Task<T> MarketRequestAsync<T>(string path, object? body = null, string? accept = null, CancellationToken ct = default) =>
@@ -173,6 +187,15 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
 
     private Task<T> TradingRequestAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken ct = default) =>
         RequestAsync<T>(method, _config.OrderBaseUrl, path, body, accept: null, ct: ct);
+
+    /// <summary>Returns the raw market-data API response body exactly as the server sent it.</summary>
+    public Task<string> MarketDataRawAsync(string path, object? body = null, string? accept = null, CancellationToken ct = default) =>
+        RequestTextAsync(body is null ? HttpMethod.Get : HttpMethod.Post,
+            _config.MarketDataApiUrl, path, body, accept, MarketDataJsonOptions, ct);
+
+    /// <summary>Returns the raw interactive (trading) API response body exactly as the server sent it.</summary>
+    public Task<string> TradingRawAsync(HttpMethod method, string path, object? body = null, CancellationToken ct = default) =>
+        RequestTextAsync(method, _config.OrderBaseUrl, path, body, accept: null, ct: ct);
 
     // ── Instruments (served from the gzipped master file) ─────────────────────
 
