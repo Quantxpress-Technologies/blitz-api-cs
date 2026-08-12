@@ -40,7 +40,7 @@ public class BlitzInteractiveApiClient
         _inner.GetStatisticsByInstanceAsync(strategyName, strategyInstanceName, ct);
     public Task<BlitzApiResponse<PlaceOrderData>> PlaceOrderAsync(PlaceOrderRequest order, CancellationToken ct = default) =>
         _inner.PlaceOrderAsync(order, ct);
-    public Task<BlitzApiResponse<PlaceOrderData>> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
+    public Task<ModifyOrderResponse> ModifyOrderAsync(ModifyOrderRequest order, CancellationToken ct = default) =>
         _inner.ModifyOrderAsync(order, ct);
     public Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default) =>
         _inner.CancelOrderAsync(cancel, ct);

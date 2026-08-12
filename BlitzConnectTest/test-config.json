@@ -1,14 +1,14 @@
 {
   "connection": {
-    "marketDataApiUrl": "http://uat.quantxpress.com/md-api",
-    "authBaseUrl": "http://uat.quantxpress.com/api_gateway/v1",
-    "orderBaseUrl": "http://localhost:5294/api/v1",
-    "interactiveWsUrl": "ws://localhost:5294/ws",
-    "marketDataWsUrl": "ws://uat.quantxpress.com/md-streaming/ws",
-    "instrumentGzUrl": "http://uat.quantxpress.com/v1/api/instruments/gz/download",
-    "appKey": "CPXotUwWdlIpgJbYrguSnVyu05IZaws1HjwKaXKNQ",
-    "userId": "Algo123",
-    "clientId": "Algo123"
+    "marketDataApiUrl": "https://uat.bull8.ai:7443/md-api",
+    "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
+    "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
+    "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
+    "marketDataWsUrl": "wss://uat.bull8.ai:7443/md-streaming/ws",
+    "instrumentGzUrl": "https://uat.bull8.ai:7443/v1/api/instruments/gz/download",
+    "appKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
+    "userId": "Prateek123",
+    "clientId": "Prateek123"
   },
   "instruments": [
     { "id": 110010000014366, "symbol": "IDEA" }
@@ -67,7 +67,7 @@
     "baseTime": "28-07-2026 09:21:00"
   },
   "statistics": {
-    "strategyName": "Manual Trading",
-    "strategyInstanceName": "NSECM|RELIANCE"
+    "strategyName": "Copy Trade",
+    "strategyInstanceName": "Matrix"
   }
 }

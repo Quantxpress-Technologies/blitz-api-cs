@@ -21,6 +21,20 @@ static class TestContext
         _logWriter.WriteLine(line);
     }
 
+    public static void Raw(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) { Log("       RAW: (empty)"); return; }
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            Log("       RAW: " + System.Text.Json.JsonSerializer.Serialize(doc.RootElement, new System.Text.Json.JsonSerializerOptions { WriteIndented = false }));
+        }
+        catch
+        {
+            Log($"       RAW: {json}");
+        }
+    }
+
     public static void Test(string name, System.Action action)
     {
         try
@@ -101,6 +115,7 @@ static class TestContext
         Log("── Authentication ──────────────────────────────");
         await Client.LoginAsync();
         Log("       login OK");
+        Raw(Client.LastLoginRawResponse ?? "");
         Log(string.Empty);
     }
 
