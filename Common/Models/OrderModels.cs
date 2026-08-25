@@ -16,6 +16,7 @@ public class PlaceOrderRequest
     public double StopPrice { get; set; }
     public string ClientId { get; set; } = "";
     [JsonPropertyName("TiF_GTD_Date")] public string TifGtdDate { get; set; } = "";
+    public string? ExchangeSegment { get; set; }
     public long? InstrumentId { get; set; }
     public string? Symbol { get; set; }
 }
@@ -30,6 +31,7 @@ public class ModifyOrderRequest
     public int DisclosedQuantity { get; set; }
     public double StopPrice { get; set; }
     [JsonPropertyName("TiF_GTD_Date")] public string TifGtdDate { get; set; } = "";
+    public string? ExchangeSegment { get; set; }
     public long? InstrumentId { get; set; }
     public string? Symbol { get; set; }
 }
@@ -37,6 +39,8 @@ public class ModifyOrderRequest
 public class CancelOrderRequest
 {
     public long BlitzOrderId { get; set; }
+    public string? ExchangeSegment { get; set; }
+    public long? ExchangeInstrumentId { get; set; }
     public long? InstrumentId { get; set; }
     public string? Symbol { get; set; }
 }

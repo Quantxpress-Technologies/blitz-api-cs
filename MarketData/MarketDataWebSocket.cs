@@ -17,7 +17,12 @@ public class MarketDataWebSocket : IDisposable
 
     public event Action<long, double>? OnLtp;
     public event Action<MarketDataMessageBase>? OnMessage;
+    public event Action<TickDataMessage>? OnTick;
     public event Action<MarketDepthMessage>? OnMarketDepth;
+    public event Action<TouchLineDataMessage>? OnTouchline;
+    public event Action<IndexDataMessage>? OnIndex;
+    public event Action<IndexDataListMessage>? OnIndexList;
+    public event Action<IncrementalUpdateMessage>? OnIncremental;
     public event Action<string>? OnError;
     public event Action? OnConnected;
     public event Action<int, string>? OnDisconnected;
@@ -152,12 +157,14 @@ public class MarketDataWebSocket : IDisposable
             {
                 case MarketDataMessageBase.SubtypeOneofCase.TickDataMessage:
                     var tick = msg.TickDataMessage;
+                    OnTick?.Invoke(tick);
                     if (tick.LTP > 0)
                         OnLtp?.Invoke((long)tick.InstrumentID, tick.LTP);
                     break;
 
                 case MarketDataMessageBase.SubtypeOneofCase.TouchLineDataMessage:
                     var touch = msg.TouchLineDataMessage;
+                    OnTouchline?.Invoke(touch);
                     if (touch.LTP > 0)
                         OnLtp?.Invoke((long)touch.InstrumentID, touch.LTP);
                     break;
@@ -167,6 +174,18 @@ public class MarketDataWebSocket : IDisposable
                     OnMarketDepth?.Invoke(depth);
                     if (depth.LTP > 0)
                         OnLtp?.Invoke((long)depth.InstrumentID, depth.LTP);
+                    break;
+
+                case MarketDataMessageBase.SubtypeOneofCase.IndexDataMessage:
+                    OnIndex?.Invoke(msg.IndexDataMessage);
+                    break;
+
+                case MarketDataMessageBase.SubtypeOneofCase.IndexDataListMessage:
+                    OnIndexList?.Invoke(msg.IndexDataListMessage);
+                    break;
+
+                case MarketDataMessageBase.SubtypeOneofCase.IncrementalUpdateMessage:
+                    OnIncremental?.Invoke(msg.IncrementalUpdateMessage);
                     break;
 
                 case MarketDataMessageBase.SubtypeOneofCase.TickData:
@@ -184,7 +203,7 @@ public class MarketDataWebSocket : IDisposable
 
     private void ProcessTextMessage(string raw)
     {
-        // Try base64-decoded protobuf first (Bull8 MD WS sends base64 protobuf as text)
+        // Try base64-decoded protobuf first (sERVER MD WS sends base64 protobuf as text)
         byte[]? decoded = null;
         try
         {

@@ -1,29 +1,29 @@
 {
   "connection": {
-    "marketDataApiUrl": "https://uat.bull8.ai:7443/md-api",
-    "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
-    "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
-    "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
-    "marketDataWsUrl": "wss://uat.bull8.ai:7443/md-streaming/ws",
-    "instrumentGzUrl": "https://uat.bull8.ai:7443/v1/api/instruments/gz/download",
-    "appKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
-    "userId": "Prateek123",
-    "clientId": "Prateek123"
+    "marketDataApiUrl": "http://uat.quantxpress.com/md-api",
+    "authBaseUrl": "http://uat.quantxpress.com/api_gateway/v1",
+    "orderBaseUrl": "http://uat.quantxpress.com/api_interactive/api/v1/",
+    "interactiveWsUrl": "ws://uat.quantxpress.com/api_interactive/ws",
+    "marketDataWsUrl": "ws://uat.quantxpress.com/md-streaming/ws",
+    "instrumentGzUrl": "http://uat.quantxpress.com/v1/api/instruments/gz/download",
+    "appKey": "CPXotUwWdlIpgJbYrguSnVyu05IZaws1HjwKaXKNQ",
+    "userId": "Algo123",
+    "clientId": "Algo123"
   },
   "instruments": [
-    { "id": 110010000014366, "symbol": "IDEA" }
-    
+    { "id": 110010000002885, "symbol": "RELIANCE" }
+
   ],
   "marketData": {
     "symbols": ["IDEA", "IDEA28JUL263000CE"],
     "optionChainSymbol": "NIFTY",
-    "optionChainExpiry": "2026-09-01",
+    "optionChainExpiry": "2026-09-29",
     "optionChainRequest": "optionchain",
     "optionChainExchangeSegment": 2,
     "optionChainInstrumentId": 110010000014366,
     "optionChainFallbackSymbols": ["IDEA", "NSEFO:IDEA", "NSECM:IDEA"],
     "relianceOptionChainSymbol": "RELIANCE",
-    "relianceOptionChainExpiry": "2026-09-01",
+    "relianceOptionChainExpiry": "2026-09-29",
     "historicalSymbol": "IDEA",
     "historicalInterval": "D"
   },

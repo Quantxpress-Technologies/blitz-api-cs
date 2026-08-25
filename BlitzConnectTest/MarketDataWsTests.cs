@@ -23,11 +23,23 @@ static class MarketDataWsTests
         int connectCount = 0;
         string? errorMsg = null;
 
-        mdWs.OnMessage += (msg) =>
-        {
-            var json = Google.Protobuf.JsonFormatter.Default.Format(msg);
-            TestContext.Log($"New tick data received:{json}");
-        };
+        // mdWs.OnMessage += (msg) =>
+        // {
+        //     var json = Google.Protobuf.JsonFormatter.Default.Format(msg);
+        //     TestContext.Log($"New tick data received:{json}");
+        // };
+        mdWs.OnMarketDepth += (d) =>
+            TestContext.Log("[DEPTH]\n" + Google.Protobuf.JsonFormatter.Default.Format(d));
+        mdWs.OnTick += (t) =>
+            TestContext.Log("[TICK]\n" + Google.Protobuf.JsonFormatter.Default.Format(t));
+        mdWs.OnTouchline += (t) =>
+            TestContext.Log("[TOUCHLINE]\n" + Google.Protobuf.JsonFormatter.Default.Format(t));
+        mdWs.OnIndex += (i) =>
+            TestContext.Log("[INDEX]\n" + Google.Protobuf.JsonFormatter.Default.Format(i));
+        mdWs.OnIndexList += (il) =>
+            TestContext.Log("[INDEXLIST]\n" + Google.Protobuf.JsonFormatter.Default.Format(il));
+        mdWs.OnIncremental += (inc) =>
+            TestContext.Log("[INCREMENTAL]\n" + Google.Protobuf.JsonFormatter.Default.Format(inc));
         mdWs.OnConnected += () =>
         {
             connectCount++;

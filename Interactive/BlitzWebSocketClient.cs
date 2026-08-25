@@ -21,6 +21,7 @@ public class BlitzWebSocketClient : IDisposable
     private string? _token;
     private int _reconnectDelay = 1000;
     private bool _closing;
+    private readonly HashSet<string> _subscribedActions = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -81,7 +82,15 @@ public class BlitzWebSocketClient : IDisposable
             OnError?.Invoke(new ArgumentException($"Unknown action: {action}"));
             return;
         }
+        _subscribedActions.Add(action);
         await SendJsonAsync(new { action });
+    }
+
+    public async Task UnsubscribeActionAsync(string action)
+    {
+        var unsub = action.Replace("Subscribe", "Unsubscribe");
+        _subscribedActions.Remove(action);
+        await SendJsonAsync(new { action = unsub });
     }
 
     public void Dispose()
@@ -108,6 +117,9 @@ public class BlitzWebSocketClient : IDisposable
             {
                 await ConnectAsync(ct);
                 OnConnect?.Invoke();
+
+                foreach (var action in _subscribedActions)
+                    await SendJsonAsync(new { action });
 
                 _reconnectDelay = 1000;
                 await ReceiveLoopAsync(ct);

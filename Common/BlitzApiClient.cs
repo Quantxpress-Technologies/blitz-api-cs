@@ -359,8 +359,12 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
     public async Task<GatewayResponse> CancelOrderAsync(CancelOrderRequest cancel, CancellationToken ct = default)
     {
         var query = new List<string> { $"blitzOrderId={cancel.BlitzOrderId}" };
+        if (!string.IsNullOrWhiteSpace(cancel.ExchangeSegment))
+            query.Add($"ExchangeSegment={Uri.EscapeDataString(cancel.ExchangeSegment)}");
+        if (cancel.ExchangeInstrumentId.HasValue)
+            query.Add($"ExchangeInstrumentId={cancel.ExchangeInstrumentId.Value}");
         if (cancel.InstrumentId.HasValue)
-            query.Add($"instrumentId={cancel.InstrumentId.Value}");
+            query.Add($"InstrumentId={cancel.InstrumentId.Value}");
         if (!string.IsNullOrWhiteSpace(cancel.Symbol))
             query.Add($"symbol={Uri.EscapeDataString(cancel.Symbol)}");
 
