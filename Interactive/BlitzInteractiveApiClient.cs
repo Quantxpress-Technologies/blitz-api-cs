@@ -31,7 +31,9 @@ public class BlitzInteractiveApiClient
         _inner.GetPositionsAsync(ct);
     public Task<TradesResponse> GetTradesAsync(CancellationToken ct = default) =>
         _inner.GetTradesAsync(ct);
-    public Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default) =>
+    public Task<TradesResponse> GetTradesByBlitzOrderIdAsync(long blitzOrderId, CancellationToken ct = default) =>
+        _inner.GetTradesByBlitzOrderIdAsync(blitzOrderId, ct);
+    public Task<OrdersResponse> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default) =>
         _inner.GetOrderByIdAsync(blitzOrderId, ct);
     public Task<StrategyStatisticsResponse> GetStatisticsAsync(CancellationToken ct = default) =>
         _inner.GetStatisticsAsync(ct);
@@ -46,4 +48,10 @@ public class BlitzInteractiveApiClient
         _inner.CancelOrderAsync(cancel, ct);
     public Task<GatewayResponse> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default) =>
         _inner.SendSignalsAsync(signals, ct);
+    public Task<LogoutResponse> LogoutAsync(string? sessionId = null, CancellationToken ct = default) =>
+        _inner.LogoutAsync(sessionId, ct);
+    public Task<HoldingsResponse> GetHoldingsAsync(CancellationToken ct = default) =>
+        _inner.GetHoldingsAsync(ct);
+    public Task<Profile?> GetProfileAsync(CancellationToken ct = default) =>
+        _inner.GetProfileAsync(ct);
 }

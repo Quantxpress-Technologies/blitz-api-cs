@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using BlitzConnect.Common.Models;
 
@@ -9,18 +10,42 @@ static class InteractiveApiTests
     public static async Task<int> RunAsync()
     {
         TestContext.Log("── Interactive API ───────────────────────────");
+        TestContext.TestAsync("GetProfile", GetProfile);
+        TestContext.TestAsync("GetHoldings", GetHoldings);
         TestContext.TestAsync("GetOrders", GetOrders);
         TestContext.TestAsync("GetOpenOrders", GetOpenOrders);
         TestContext.TestAsync("GetPositions", GetPositions);
         TestContext.TestAsync("GetTrades", GetTrades);
+        TestContext.TestAsync("GetTradesByBlitzOrderId", GetTradesByBlitzOrderId);
         TestContext.TestAsync("GetOrderById", GetOrderById);
         TestContext.TestAsync("GetStatistics", GetStatistics);
         TestContext.TestAsync("GetStatisticsByInstance", GetStatisticsByInstance);
+        TestContext.TestAsync("Logout", Logout);
         //TestContext.TestAsync("PlaceAndCancelCycle", PlaceAndCancelOrderCycle);
         //TestContext.TestAsync("PlaceAndModifyCycle", PlaceAndModifyOrderCycle);
         //TestContext.TestAsync("SendSignals", SendSignals);
         //TestContext.Summary();
         return TestContext.Fail;
+    }
+
+    static async Task GetProfile()
+    {
+        var profile = await TestContext.Client.GetProfileAsync();
+        TestContext.Raw(JsonSerializer.Serialize(profile));
+    }
+
+    static async Task GetHoldings()
+    {
+        var holdings = await TestContext.Client.GetHoldingsAsync();
+        TestContext.Raw(JsonSerializer.Serialize(holdings.Data));
+    }
+
+    static async Task Logout()
+    {
+        var resp = await TestContext.Client.LogoutAsync();
+        TestContext.Raw(JsonSerializer.Serialize(resp));
+        if (resp.Message is null)
+            throw new Exception($"Unexpected logout response: {JsonSerializer.Serialize(resp)}");
     }
 
     static async Task GetOrders() =>
@@ -34,6 +59,22 @@ static class InteractiveApiTests
 
     static async Task GetTrades() =>
         TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, "trades"));
+
+    static async Task GetTradesByBlitzOrderId()
+    {
+        var ordersRaw = await TestContext.Client.TradingRawAsync(HttpMethod.Get, "orders");
+        var orders = JsonSerializer.Deserialize<List<OrderEntry>>(ordersRaw,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        var id = orders.FirstOrDefault()?.BlitzOrderId ?? TestContext.Cfg.CancelOrder.BlitzOrderId;
+        try
+        {
+            TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, $"trades/{id}"));
+        }
+        catch (BlitzConnect.Common.BlitzConnectException ex) when (ex.HttpStatusCode == 404)
+        {
+            TestContext.Log($"       404 - no trades for BlitzOrderId {id}");
+        }
+    }
 
     static async Task GetOrderById()
     {

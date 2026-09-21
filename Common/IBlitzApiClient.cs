@@ -43,8 +43,8 @@ public interface IBlitzApiClient : IDisposable
     /// <summary>Gets trade history.</summary>
     Task<TradesResponse> GetTradesAsync(CancellationToken ct = default);
 
-    /// <summary>Gets a single order by BlitzOrderId.</summary>
-    Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default);
+    /// <summary>Gets an order's full lifecycle (all status updates) by BlitzOrderId.</summary>
+    Task<OrdersResponse> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default);
 
     /// <summary>Gets strategy statistics for the current user.</summary>
     Task<StrategyStatisticsResponse> GetStatisticsAsync(CancellationToken ct = default);
@@ -64,4 +64,13 @@ public interface IBlitzApiClient : IDisposable
 
     /// <summary>Sends trading signals.</summary>
     Task<GatewayResponse> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default);
+
+    /// <summary>Logs out and revokes the current session(s) and token.</summary>
+    Task<LogoutResponse> LogoutAsync(string? sessionId = null, CancellationToken ct = default);
+
+    /// <summary>Gets the current user's holdings (portfolio).</summary>
+    Task<HoldingsResponse> GetHoldingsAsync(CancellationToken ct = default);
+
+    /// <summary>Gets the current user's profile.</summary>
+    Task<Profile?> GetProfileAsync(CancellationToken ct = default);
 }
