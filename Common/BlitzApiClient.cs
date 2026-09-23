@@ -307,13 +307,20 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
             : new TradesResponse();
     }
 
-    public async Task<BlitzApiResponse<OrderEntry>> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default)
+    public async Task<TradesResponse> GetTradesByBlitzOrderIdAsync(long blitzOrderId, CancellationToken ct = default)
+    {
+        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, $"trades/{blitzOrderId}", ct: ct);
+        return el.ValueKind == JsonValueKind.Array
+            ? new TradesResponse { Data = JsonSerializer.Deserialize<List<JsonElement>>(el.GetRawText(), JsonOptions) ?? [] }
+            : new TradesResponse();
+    }
+
+    public async Task<OrdersResponse> GetOrderByIdAsync(long blitzOrderId, CancellationToken ct = default)
     {
         var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, $"orders/{blitzOrderId}", ct: ct);
-        var entry = el.ValueKind == JsonValueKind.Object
-            ? JsonSerializer.Deserialize<OrderEntry>(el.GetRawText(), JsonOptions)
-            : null;
-        return new BlitzApiResponse<OrderEntry> { Status = "success", Data = entry };
+        return el.ValueKind == JsonValueKind.Array
+            ? new OrdersResponse { Data = JsonSerializer.Deserialize<List<OrderEntry>>(el.GetRawText(), JsonOptions) ?? [] }
+            : new OrdersResponse();
     }
 
     public async Task<StrategyStatisticsResponse> GetStatisticsAsync(CancellationToken ct = default)
@@ -370,4 +377,32 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
 
     public async Task<GatewayResponse> SendSignalsAsync(List<SignalRequest> signals, CancellationToken ct = default) =>
         await TradingRequestAsync<GatewayResponse>(HttpMethod.Post, "signals", signals, ct);
+
+    // ── Session / profile ──────────────────────────────────────────────
+
+    /// <summary>Logs out and revokes the current session(s) and token.</summary>
+    public async Task<LogoutResponse> LogoutAsync(string? sessionId = null, CancellationToken ct = default)
+    {
+        var text = await TradingRawAsync(HttpMethod.Post, "session/logout",
+            sessionId is null ? null : new { sessionId }, ct);
+        return JsonSerializer.Deserialize<LogoutResponse>(text, JsonOptions) ?? new LogoutResponse();
+    }
+
+    /// <summary>Gets the current user's holdings (portfolio).</summary>
+    public async Task<HoldingsResponse> GetHoldingsAsync(CancellationToken ct = default)
+    {
+        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, "portfolio/holdings", ct: ct);
+        return el.ValueKind == JsonValueKind.Array
+            ? new HoldingsResponse { Data = JsonSerializer.Deserialize<List<Holding>>(el.GetRawText(), JsonOptions) ?? [] }
+            : new HoldingsResponse();
+    }
+
+    /// <summary>Gets the current user's profile.</summary>
+    public async Task<Profile?> GetProfileAsync(CancellationToken ct = default)
+    {
+        var el = await TradingRequestAsync<JsonElement>(HttpMethod.Get, "profile", ct: ct);
+        return el.ValueKind == JsonValueKind.Object
+            ? JsonSerializer.Deserialize<Profile>(el.GetRawText(), JsonOptions)
+            : null;
+    }
 }

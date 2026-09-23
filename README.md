@@ -107,7 +107,6 @@ var openOrders = await client.GetOpenOrdersAsync();
 var positions = await client.GetPositionsAsync();
 var trades = await client.GetTradesAsync();
 var orderById = await client.GetOrderByIdAsync(blitzOrderId: 24091124420000098);
-var tradeById = await client.GetTradeByIdAsync(tradeId: 12345);
 
 // Send signals
 var signals = new List<SignalRequest>();
