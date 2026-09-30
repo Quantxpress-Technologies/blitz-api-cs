@@ -8,13 +8,13 @@ using BlitzConnect.Interactive;
 
 static class InteractiveWsTests
 {
-    public static async Task<int> RunAsync()
+    public static Task<int> RunAsync()
     {
         TestContext.Log("── Interactive WebSocket ──────────────────────");
         TestContext.TestAsync("InteractiveWS", TestWebSocket);
         TestContext.TestAsync("InteractiveWS.Client", TestWebSocketClient);
         TestContext.Summary();
-        return TestContext.Fail;
+        return Task.FromResult(TestContext.Fail);
     }
 
     static async Task TestWebSocket()

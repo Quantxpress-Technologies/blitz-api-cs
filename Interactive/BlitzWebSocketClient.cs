@@ -18,6 +18,7 @@ public class BlitzWebSocketClient : IDisposable
     private readonly BlitzConfig _config;
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _cts;
+    private System.Threading.Timer? _heartbeat;
     private string? _token;
     private int _reconnectDelay = 1000;
     private bool _closing;
@@ -65,6 +66,7 @@ public class BlitzWebSocketClient : IDisposable
     {
         _closing = true;
         _cts?.Cancel();
+        StopHeartbeat();
         if (_ws?.State == WebSocketState.Open)
         {
             try { await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None); }
@@ -88,6 +90,7 @@ public class BlitzWebSocketClient : IDisposable
     {
         _closing = true;
         _cts?.Cancel();
+        StopHeartbeat();
         _cts?.Dispose();
         _ws?.Dispose();
     }
@@ -98,6 +101,27 @@ public class BlitzWebSocketClient : IDisposable
         var json = JsonSerializer.Serialize(data, JsonOptions);
         var bytes = Encoding.UTF8.GetBytes(json);
         await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+    }
+
+    private async Task SendRawTextAsync(string text)
+    {
+        if (_ws?.State != WebSocketState.Open) return;
+        var bytes = Encoding.UTF8.GetBytes(text);
+        await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+    }
+
+    private void StartHeartbeat()
+    {
+        StopHeartbeat();
+        var seconds = _config.HeartbeatIntervalSeconds > 0 ? _config.HeartbeatIntervalSeconds : 30;
+        var interval = TimeSpan.FromSeconds(seconds);
+        _heartbeat = new System.Threading.Timer(_ => _ = SendRawTextAsync("ping"), null, interval, interval);
+    }
+
+    private void StopHeartbeat()
+    {
+        _heartbeat?.Dispose();
+        _heartbeat = null;
     }
 
     private async Task RunLoopAsync(CancellationToken ct)
@@ -128,12 +152,16 @@ public class BlitzWebSocketClient : IDisposable
         if (!string.IsNullOrEmpty(_token))
         {
             var sep = wsUrl.Contains('?') ? '&' : '?';
-            wsUrl = $"{wsUrl}{sep}access_token={_token}";
+            wsUrl = $"{wsUrl}{sep}access_token={Uri.EscapeDataString(_token)}";
         }
 
         _ws?.Dispose();
         _ws = new ClientWebSocket();
+        _ws.Options.KeepAliveInterval = System.Threading.Timeout.InfiniteTimeSpan;
+        if (_config.SkipCertificateValidation)
+            _ws.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
         await _ws.ConnectAsync(new Uri(wsUrl), ct);
+        StartHeartbeat();
     }
 
     private async Task ReceiveLoopAsync(CancellationToken ct)

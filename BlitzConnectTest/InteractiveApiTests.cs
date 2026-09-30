@@ -7,7 +7,7 @@ using BlitzConnect.Common.Models;
 
 static class InteractiveApiTests
 {
-    public static async Task<int> RunAsync()
+    public static Task<int> RunAsync()
     {
         TestContext.Log("── Interactive API ───────────────────────────");
         TestContext.TestAsync("GetProfile", GetProfile);
@@ -20,12 +20,13 @@ static class InteractiveApiTests
         TestContext.TestAsync("GetOrderById", GetOrderById);
         TestContext.TestAsync("GetStatistics", GetStatistics);
         TestContext.TestAsync("GetStatisticsByInstance", GetStatisticsByInstance);
+        TestContext.TestAsync("PlaceOrder", PlaceOrder);
+        TestContext.TestAsync("ModifyOrder", ModifyOrder);
+        TestContext.TestAsync("CancelOrder", CancelOrder);
         TestContext.TestAsync("Logout", Logout);
-        //TestContext.TestAsync("PlaceAndCancelCycle", PlaceAndCancelOrderCycle);
-        //TestContext.TestAsync("PlaceAndModifyCycle", PlaceAndModifyOrderCycle);
+        // SendSignals posts to a live strategy and can trigger real trades, so it stays opt-in.
         //TestContext.TestAsync("SendSignals", SendSignals);
-        //TestContext.Summary();
-        return TestContext.Fail;
+        return Task.FromResult(TestContext.Fail);
     }
 
     static async Task GetProfile()
@@ -62,10 +63,7 @@ static class InteractiveApiTests
 
     static async Task GetTradesByBlitzOrderId()
     {
-        var ordersRaw = await TestContext.Client.TradingRawAsync(HttpMethod.Get, "orders");
-        var orders = JsonSerializer.Deserialize<List<OrderEntry>>(ordersRaw,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
-        var id = orders.FirstOrDefault()?.BlitzOrderId ?? TestContext.Cfg.CancelOrder.BlitzOrderId;
+        long id = 222115050150000049; // temp: fixed id requested by user
         try
         {
             TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, $"trades/{id}"));
@@ -98,14 +96,25 @@ static class InteractiveApiTests
         TestContext.Raw(await TestContext.Client.TradingRawAsync(HttpMethod.Get, $"strategy/statistics/instance?{string.Join("&", query)}"));
     }
 
-    static async Task PlaceAndModifyOrderCycle()
+    static long? ResolveBlitzOrderId(long configured)
+    {
+        if (configured != 0) return configured;
+        if (TestContext.LastPlacedBlitzOrderId is not null) return TestContext.LastPlacedBlitzOrderId;
+
+        var ordersRaw = TestContext.Client.TradingRawAsync(HttpMethod.Get, "orders").GetAwaiter().GetResult();
+        var orders = System.Text.Json.JsonSerializer.Deserialize<List<OrderEntry>>(ordersRaw,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        return orders.FirstOrDefault()?.BlitzOrderId;
+    }
+
+    static async Task PlaceOrder()
     {
         var po = TestContext.Cfg.PlaceOrder;
         var ltpResp = await TestContext.Client.GetLtpAsync(new List<long> { po.InstrumentId });
         var ltp = ltpResp.Data?.Values.FirstOrDefault()?.Ltp ?? po.Price;
         var placePrice = Math.Round(ltp * 0.95, 2);
 
-        var placeResult = await TestContext.Client.PlaceOrderAsync(new PlaceOrderRequest
+        var result = await TestContext.Client.PlaceOrderAsync(new PlaceOrderRequest
         {
             CorrelationOrderId = $"test_{Guid.NewGuid():N}"[..16],
             Quantity = po.Quantity, Product = po.Product, Tif = po.Tif,
@@ -113,44 +122,57 @@ static class InteractiveApiTests
             DisclosedQuantity = po.DisclosedQuantity, StopPrice = po.StopPrice,
             TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
             InstrumentId = po.InstrumentId, ClientId = TestContext.Cfg.Connection.ClientId ?? "",
+            ExchangeSegment = po.ExchangeSegment,
         });
-        TestContext.Log($"       place status={placeResult.Status} message={placeResult.Message}");
-        if (placeResult.Data is null) { TestContext.Log($"       no data, skip modify"); return; }
-
-        var orderId = placeResult.Data.BlitzOrderId;
-        TestContext.Log($"       placed orderId={orderId} price={placePrice}");
-
-        var modifyPrice = Math.Round(placePrice * 1.01, 2);
-        var modifyResult = await TestContext.Client.ModifyOrderAsync(new ModifyOrderRequest
-        {
-            BlitzOrderId = orderId, ModifiedOrderQuantity = po.Quantity, Price = modifyPrice,
-            OrderType = po.OrderType, Tif = po.Tif, TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = po.InstrumentId, Symbol = null,
-        });
-        TestContext.Log($"       modify status={modifyResult.Status} message={modifyResult.Message} data={modifyResult.Data}");
+        TestContext.Log($"       status={result.Status} message={result.Message}");
+        if (result.Data is null)
+            throw new Exception($"place order returned no data: {result.Message}");
+        TestContext.LastPlacedBlitzOrderId = result.Data.BlitzOrderId;
+        TestContext.Log($"       blitzOrderId={result.Data.BlitzOrderId} price={placePrice}");
     }
 
-    static async Task PlaceAndCancelOrderCycle()
+    static async Task ModifyOrder()
     {
-        var po = TestContext.Cfg.PlaceOrder;
-        var placeResult = await TestContext.Client.PlaceOrderAsync(new PlaceOrderRequest
-        {
-            CorrelationOrderId = $"test_{Guid.NewGuid():N}"[..16],
-            Quantity = po.Quantity, Product = po.Product, Tif = po.Tif,
-            Price = po.Price, OrderType = po.OrderType, OrderSide = po.OrderSide,
-            DisclosedQuantity = po.DisclosedQuantity, StopPrice = po.StopPrice,
-            TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            InstrumentId = po.InstrumentId, ClientId = TestContext.Cfg.Connection.ClientId ?? "",
-        });
-        TestContext.Log($"       place status={placeResult.Status} message={placeResult.Message}");
-        if (placeResult.Data is null) { TestContext.Log($"       no data, skip cancel"); return; }
+        var mo = TestContext.Cfg.ModifyOrder;
+        var id = ResolveBlitzOrderId(mo.BlitzOrderId);
+        if (id is null or 0)
+            throw new Exception("no blitzOrderId available - set modifyOrder.blitzOrderId in test-config.json");
 
-        var cancelResult = await TestContext.Client.CancelOrderAsync(new CancelOrderRequest
+        var price = mo.Price;
+        if (price <= 0)
         {
-            BlitzOrderId = placeResult.Data.BlitzOrderId,
-            InstrumentId = po.InstrumentId,
+            var ltpResp = await TestContext.Client.GetLtpAsync(new List<long> { mo.InstrumentId });
+            var ltp = ltpResp.Data?.Values.FirstOrDefault()?.Ltp ?? mo.Price;
+            price = Math.Round(ltp * 0.95, 2);
+        }
+
+        var result = await TestContext.Client.ModifyOrderAsync(new ModifyOrderRequest
+        {
+            BlitzOrderId = id.Value,
+            ModifiedOrderQuantity = mo.ModifiedOrderQuantity,
+            Price = price, OrderType = mo.OrderType, Tif = mo.Tif,
+            DisclosedQuantity = mo.DisclosedQuantity, StopPrice = mo.StopPrice,
+            TifGtdDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            InstrumentId = mo.InstrumentId, Symbol = mo.Symbol,
+            ExchangeSegment = mo.ExchangeSegment,
         });
-        TestContext.Log($"       cancel status={cancelResult.Status} message={cancelResult.Message}");
+        TestContext.Log($"       blitzOrderId={id} status={result.Status} message={result.Message} data={result.Data}");    }
+
+    static async Task CancelOrder()
+    {
+        var co = TestContext.Cfg.CancelOrder;
+        var id = ResolveBlitzOrderId(co.BlitzOrderId);
+        if (id is null or 0)
+            throw new Exception("no blitzOrderId available - set cancelOrder.blitzOrderId in test-config.json");
+
+        var result = await TestContext.Client.CancelOrderAsync(new CancelOrderRequest
+        {
+            BlitzOrderId = id.Value,
+            InstrumentId = co.InstrumentId,
+            Symbol = co.Symbol,
+            ExchangeSegment = TestContext.Cfg.PlaceOrder.ExchangeSegment,
+        });
+        TestContext.Log($"       blitzOrderId={id} status={result.Status} message={result.Message}");
     }
 
     static async Task SendSignals()

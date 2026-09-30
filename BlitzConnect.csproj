@@ -24,4 +24,15 @@
     <Protobuf Include="Protos\marketdata.proto" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Onboarding and test tooling for API clients. Not compiled; shipped so
+         the files land in the build output and the NuGet package. -->
+    <Content Include="Postman-collection\**\*">
+      <Pack>true</Pack>
+      <PackagePath>content\Postman-collection\</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
