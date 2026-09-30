@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 static class MarketDataApiTests
 {
-    public static async Task<int> RunAsync()
+    public static Task<int> RunAsync()
     {
         TestContext.Log("── Instrument Details ──────────────────────────");
         TestContext.TestAsync("GetInstrumentDetails.ById", GetInstrumentDetailsById);
@@ -21,7 +21,7 @@ static class MarketDataApiTests
         TestContext.TestAsync("GetMarketQuote.ByNames", GetMarketQuoteByNames);
         TestContext.TestAsync("GetHistoricalData", GetHistoricalData);
         TestContext.Summary();
-        return TestContext.Fail;
+        return Task.FromResult(TestContext.Fail);
     }
 
     static async Task GetInstrumentDetailsById()
@@ -33,9 +33,12 @@ static class MarketDataApiTests
 
     static async Task GetInstrumentDetailsBySymbol()
     {
-        var symbol = TestContext.Cfg.Instruments.Select(i => i.Symbol).FirstOrDefault() ?? "";
+        var inst = TestContext.Cfg.Instruments.FirstOrDefault();
+        var symbol = string.IsNullOrWhiteSpace(inst?.LookupSymbol)
+            ? $"NSECM:{inst?.Symbol}"
+            : inst!.LookupSymbol;
         var result = await TestContext.Client.GetInstrumentDetailsAsync(symbol);
-        TestContext.Log($"       status={result.Status} id={result.Data?.InstrumentId} symbol={result.Data?.Symbol} ltp={result.Data?.Ltp}");
+        TestContext.Log($"       lookup={symbol} status={result.Status} id={result.Data?.InstrumentId} symbol={result.Data?.Symbol} ltp={result.Data?.Ltp}");
     }
 
     static async Task GetInstruments()

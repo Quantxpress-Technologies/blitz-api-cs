@@ -13,11 +13,11 @@ public class BlitzInstrumentManager
 
     public int Count => _instruments.Count;
 
-    public async Task LoadInstrumentsAsync(string url, string? accessToken = null, CancellationToken ct = default)
+    public async Task LoadInstrumentsAsync(string url, string? accessToken = null, bool skipCertificateValidation = true, CancellationToken ct = default)
     {
         using var http = new HttpClient(new HttpClientHandler
         {
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+            ServerCertificateCustomValidationCallback = skipCertificateValidation ? (_, _, _, _) => true : null,
         });
 
         using var req = new HttpRequestMessage(HttpMethod.Get, url);

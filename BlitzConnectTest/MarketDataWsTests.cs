@@ -5,12 +5,12 @@ using BlitzConnect.MarketData;
 
 static class MarketDataWsTests
 {
-    public static async Task<int> RunAsync()
+    public static Task<int> RunAsync()
     {
         TestContext.Log("── Market Data WebSocket ────────────────────────");
         TestContext.TestAsync("MarketDataWS", TestMarketDataWebSocket);
         TestContext.Summary();
-        return TestContext.Fail;
+        return Task.FromResult(TestContext.Fail);
     }
 
     static async Task TestMarketDataWebSocket()

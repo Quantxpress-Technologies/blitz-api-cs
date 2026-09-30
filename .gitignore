@@ -11,6 +11,8 @@ packages/
 
 # Environment / credentials
 .env
+.env.*
+BlitzConnectTest/logs/
 
 # IDE
 .vs/

@@ -19,6 +19,7 @@ public class PlaceOrderRequest
     public long? InstrumentId { get; set; }
     public long? ExchangeInstrumentId { get; set; }
     public string? Symbol { get; set; }
+    public string? ExchangeSegment { get; set; }
 }
 
 public class ModifyOrderRequest
@@ -34,6 +35,7 @@ public class ModifyOrderRequest
     public long? InstrumentId { get; set; }
     public long? ExchangeInstrumentId { get; set; }
     public string? Symbol { get; set; }
+    public string? ExchangeSegment { get; set; }
 }
 
 public class CancelOrderRequest
@@ -41,6 +43,7 @@ public class CancelOrderRequest
     public long BlitzOrderId { get; set; }
     public long? InstrumentId { get; set; }
     public string? Symbol { get; set; }
+    public string? ExchangeSegment { get; set; }
 }
 
 public class OrderEntry

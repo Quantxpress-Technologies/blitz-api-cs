@@ -16,8 +16,14 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
     private readonly object _authLock = new();
     private bool _disposed;
 
+    // Interactive/trading API expects camelCase JSON field names (clientId,
+    // correlationOrderId, exchangeSegment...). The UAT gateway is tolerant of
+    // either casing, but a strict host rejects PascalCase with
+    // "the clientid field is required" - so match the documented contract.
+    // PropertyNameCaseInsensitive keeps response binding working either way.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
     };
 
@@ -30,15 +36,25 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
     private const int MaxRetries = 3;
     private static readonly TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4)];
 
+    /// <summary>Injects an already-issued access token, skipping the login call.</summary>
+    public void SetToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ArgumentException("Token cannot be empty.", nameof(token));
+        lock (_authLock) { _token = token; }
+        SetAuthHeader();
+    }
+
     /// <summary>Creates a new API client using the given configuration.</summary>
     public BlitzApiClient(BlitzConfig config)
     {
         _config = config;
         var handler = new HttpClientHandler
         {
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
             MaxConnectionsPerServer = 10,
         };
+        if (config.SkipCertificateValidation)
+            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(config.RequestTimeoutSeconds) };
         _http.DefaultRequestHeaders.ExpectContinue = false;
     }
@@ -215,7 +231,7 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         }
 
         var manager = new BlitzInstrumentManager();
-        await manager.LoadInstrumentsAsync(_config.InstrumentGzUrl, _token, ct);
+        await manager.LoadInstrumentsAsync(_config.InstrumentGzUrl, _token, _config.SkipCertificateValidation, ct);
 
         lock (_instrumentLock)
         {
@@ -230,23 +246,14 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
         return new BlitzApiResponse<List<InstrumentDetail>> { Status = "success", Data = manager.GetAll().ToList() };
     }
 
-    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id, CancellationToken ct = default)
-    {
-        var manager = await EnsureInstrumentMasterAsync(ct);
-        var detail = manager.GetById(id);
-        return detail is null
-            ? new BlitzApiResponse<InstrumentDetail> { Status = "error", Message = $"Instrument not found: {id}" }
-            : new BlitzApiResponse<InstrumentDetail> { Status = "success", Data = detail };
-    }
+    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(long id, CancellationToken ct = default) =>
+        await RequestAsync<BlitzApiResponse<InstrumentDetail>>(
+            HttpMethod.Get, _config.InstrumentBaseUrl, id.ToString(), ct: ct);
 
-    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default)
-    {
-        var manager = await EnsureInstrumentMasterAsync(ct);
-        var detail = manager.GetBySymbol(symbol);
-        return detail is null
-            ? new BlitzApiResponse<InstrumentDetail> { Status = "error", Message = $"Instrument not found: {symbol}" }
-            : new BlitzApiResponse<InstrumentDetail> { Status = "success", Data = detail };
-    }
+    public async Task<BlitzApiResponse<InstrumentDetail>> GetInstrumentDetailsAsync(string symbol, CancellationToken ct = default) =>
+        await RequestAsync<BlitzApiResponse<InstrumentDetail>>(
+            HttpMethod.Get, _config.InstrumentBaseUrl,
+            Uri.EscapeDataString(symbol.Replace('|', ':')), ct: ct);
 
     public async Task<LtpResponse> GetLtpAsync(List<long> ids, CancellationToken ct = default) =>
         await MarketRequestAsync<LtpResponse>("marketfeed/ltp", new { InstrumentIds = ids }, ct: ct);
@@ -370,6 +377,8 @@ public class BlitzApiClient : IBlitzApiClient, IDisposable
             query.Add($"instrumentId={cancel.InstrumentId.Value}");
         if (!string.IsNullOrWhiteSpace(cancel.Symbol))
             query.Add($"symbol={Uri.EscapeDataString(cancel.Symbol)}");
+        if (!string.IsNullOrWhiteSpace(cancel.ExchangeSegment))
+            query.Add($"exchangeSegment={Uri.EscapeDataString(cancel.ExchangeSegment)}");
 
         return await TradingRequestAsync<GatewayResponse>(
             HttpMethod.Delete, $"orders/cancelOrder?{string.Join("&", query)}", null, ct);

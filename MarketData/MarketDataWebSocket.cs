@@ -9,6 +9,8 @@ namespace BlitzConnect.MarketData;
 public class MarketDataWebSocket : IDisposable
 {
     private readonly string _wsUrl;
+    private readonly string? _accessKey;
+    private readonly bool _skipCertificateValidation;
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _cts;
     private Task? _receiveLoop;
@@ -22,17 +24,30 @@ public class MarketDataWebSocket : IDisposable
     public event Action? OnConnected;
     public event Action<int, string>? OnDisconnected;
 
-    public MarketDataWebSocket(string wsUrl)
+    public MarketDataWebSocket(string wsUrl, string? accessKey = null, bool skipCertificateValidation = true)
     {
         _wsUrl = wsUrl;
+        _accessKey = accessKey;
+        _skipCertificateValidation = skipCertificateValidation;
+    }
+
+    private Uri BuildUri()
+    {
+        if (string.IsNullOrEmpty(_accessKey)) return new Uri(_wsUrl);
+        if (_wsUrl.Contains("key=", StringComparison.Ordinal)) return new Uri(_wsUrl);
+
+        var sep = _wsUrl.Contains('?') ? '&' : '?';
+        return new Uri($"{_wsUrl}{sep}key={Uri.EscapeDataString(_accessKey)}");
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _ws = new ClientWebSocket();
+        if (_skipCertificateValidation)
+            _ws.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
 
-        await _ws.ConnectAsync(new Uri(_wsUrl), _cts.Token);
+        await _ws.ConnectAsync(BuildUri(), _cts.Token);
 
         OnConnected?.Invoke();
         _reconnectDelay = 1000;

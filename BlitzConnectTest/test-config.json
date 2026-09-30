@@ -2,30 +2,33 @@
   "connection": {
     "marketDataApiUrl": "https://uat.bull8.ai:7443/md-api",
     "authBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
-    "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
+    "orderBaseUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1",
     "interactiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
     "marketDataWsUrl": "wss://uat.bull8.ai:7443/md-streaming/ws",
+    "instrumentBaseUrl": "https://uat.bull8.ai:7443/v1/api/instruments",
     "instrumentGzUrl": "https://uat.bull8.ai:7443/v1/api/instruments/gz/download",
-    "appKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
-    "userId": "Prateek123",
-    "clientId": "Prateek123"
+    "appKey": "",
+    "userId": "",
+    "clientId": "",
+    "heartbeatIntervalSeconds": 30
   },
   "instruments": [
-    { "id": 110010000014366, "symbol": "IDEA" }
-    
+    { "id": 110010000011536, "symbol": "TCS", "lookupSymbol": "NSECM|TCS" },
+    { "id": 110010000002885, "symbol": "RELIANCE", "lookupSymbol": "NSECM|RELIANCE" }
   ],
   "marketData": {
-    "symbols": ["IDEA", "IDEA28JUL263000CE"],
-    "optionChainSymbol": "NIFTY",
-    "optionChainExpiry": "2026-09-01",
+    "symbols": ["TCS", "RELIANCE"],
+    "optionChainSymbol": "NSECM|NIFTY",
+    "optionChainExpiry": "2026-07-30",
     "optionChainRequest": "optionchain",
-    "optionChainExchangeSegment": 2,
-    "optionChainInstrumentId": 110010000014366,
-    "optionChainFallbackSymbols": ["IDEA", "NSEFO:IDEA", "NSECM:IDEA"],
-    "relianceOptionChainSymbol": "RELIANCE",
-    "relianceOptionChainExpiry": "2026-09-01",
-    "historicalSymbol": "IDEA",
-    "historicalInterval": "D"
+    "optionChainExchangeSegment": 1,
+    "optionChainInstrumentId": 0,
+    "optionChainFallbackSymbols": ["NSECM|NIFTY", "NSECM:NIFTY", "NIFTY", "NSEFO|NIFTY"],
+    "relianceOptionChainSymbol": "NSECM|RELIANCE",
+    "relianceOptionChainExpiry": "2026-07-30",
+    "historicalSymbol": "TCS",
+    "historicalInterval": "D",
+    "instrumentIds": [110010000011536, 110010000002885]
   },
   "placeOrder": {
     "quantity": 1,
@@ -36,22 +39,25 @@
     "orderSide": "BUY",
     "disclosedQuantity": 0,
     "stopPrice": 0.0,
-    "instrumentId": 110010000014366
+    "instrumentId": 110010000011536,
+    "exchangeSegment": "NSECM"
   },
   "modifyOrder": {
-    "blitzOrderId": 226111752520000015,
+    "blitzOrderId": 0,
     "modifiedOrderQuantity": 2,
-    "price": 11.01,
+    "price": 0,
     "orderType": "LIMIT",
     "tif": "GFD",
     "disclosedQuantity": 0,
     "stopPrice": 0.0,
-    "instrumentId": 110010000014366,
-    "symbol": "IDEA"
+    "instrumentId": 110010000011536,
+    "symbol": "NSECM|TCS",
+    "exchangeSegment": "NSECM"
   },
   "cancelOrder": {
-    "blitzOrderId": 226111752520000020,
-    "instrumentId": 110010000014366
+    "blitzOrderId": 0,
+    "instrumentId": 110010000011536,
+    "symbol": "NSECM|TCS"
   },
   "signal": {
     "sourceStrategy": "Bull8.AmberX1",

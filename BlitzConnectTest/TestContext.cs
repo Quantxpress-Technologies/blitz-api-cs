@@ -13,6 +13,7 @@ static class TestContext
     public static TestConfig Cfg = null!;
     public static int Pass;
     public static int Fail;
+    public static long? LastPlacedBlitzOrderId;
     static StreamWriter _logWriter = null!;
 
     public static void Log(string line)
@@ -53,6 +54,21 @@ static class TestContext
     public static void TestAsync(string name, System.Func<Task> action) =>
         Test(name, () => action().GetAwaiter().GetResult());
 
+    public static async Task RunAsync(string name, System.Func<Task> action)
+    {
+        try
+        {
+            await action();
+            Log($"  [PASS] {name}");
+            Interlocked.Increment(ref Pass);
+        }
+        catch (System.Exception ex)
+        {
+            Log($"  [FAIL] {name}: {ex.GetType().Name}: {ex.Message}");
+            Interlocked.Increment(ref Fail);
+        }
+    }
+
     public static async Task InitAsync()
     {
         var rootDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
@@ -80,21 +96,51 @@ static class TestContext
             }
         }
 
-        string Env(string key, string fallback) => envVars.GetValueOrDefault(key, fallback);
+        string Env(string key, string fallback) =>
+            System.Environment.GetEnvironmentVariable(key)
+            ?? envVars.GetValueOrDefault(key, fallback);
 
         var conn = Cfg.Connection;
+        var fallback = new BlitzConfig();
+
+        // If a pre-issued access token is supplied, use it directly instead of logging in.
+        string envToken = Env("ACCESS_TOKEN", "");
+        string envUserId = Env("USER_ID", conn.UserId ?? "");
+        string envClientId = Env("CLIENT_ID", conn.ClientId ?? "");
+
+        string Or(string value, string fallbackValue) =>
+            string.IsNullOrWhiteSpace(value) ? fallbackValue : value;
+
         Config = new BlitzConfig
         {
-            MarketDataApiUrl = Env("MD_API_URL", conn.MarketDataApiUrl ?? ""),
-            AuthBaseUrl = Env("AUTH_BASE_URL", conn.AuthBaseUrl ?? ""),
-            OrderBaseUrl = Env("ORDER_BASE_URL", conn.OrderBaseUrl ?? ""),
-            InteractiveWsUrl = Env("INTERACTIVE_WS_URL", conn.InteractiveWsUrl ?? ""),
-            MarketDataWsUrl = Env("MD_WS_URL", conn.MarketDataWsUrl ?? ""),
-            InstrumentGzUrl = Env("INSTRUMENT_GZ_URL", conn.InstrumentGzUrl ?? ""),
+            MarketDataApiUrl = Or(Env("MD_API_URL", conn.MarketDataApiUrl ?? ""), fallback.MarketDataApiUrl),
+            AuthBaseUrl = Or(Env("AUTH_BASE_URL", conn.AuthBaseUrl ?? ""), fallback.AuthBaseUrl),
+            OrderBaseUrl = Or(Env("ORDER_BASE_URL", conn.OrderBaseUrl ?? ""), fallback.OrderBaseUrl),
+            InteractiveWsUrl = Or(Env("INTERACTIVE_WS_URL", conn.InteractiveWsUrl ?? ""), fallback.InteractiveWsUrl),
+            MarketDataWsUrl = Or(Env("MD_WS_URL", conn.MarketDataWsUrl ?? ""), fallback.MarketDataWsUrl),
+            InstrumentBaseUrl = Or(Env("INSTRUMENT_BASE_URL", conn.InstrumentBaseUrl ?? ""), fallback.InstrumentBaseUrl),
+            InstrumentGzUrl = Or(Env("INSTRUMENT_GZ_URL", conn.InstrumentGzUrl ?? ""), fallback.InstrumentGzUrl),
             AppKey = Env("APP_KEY", conn.AppKey ?? ""),
-            UserId = Env("USER_ID", conn.UserId ?? ""),
-            ClientId = Env("CLIENT_ID", conn.ClientId ?? ""),
+            UserId = envUserId,
+            ClientId = envClientId,
+            HeartbeatIntervalSeconds = Cfg.Connection.HeartbeatIntervalSeconds > 0
+                ? Cfg.Connection.HeartbeatIntervalSeconds
+                : fallback.HeartbeatIntervalSeconds,
         };
+
+        // Write the effective values back into the test config, so individual
+        // tests that read Cfg.Connection (e.g. order clientId) see the same
+        // env-resolved values the SDK uses - not the blanked JSON defaults.
+        Cfg.Connection.MarketDataApiUrl = Config.MarketDataApiUrl;
+        Cfg.Connection.AuthBaseUrl = Config.AuthBaseUrl;
+        Cfg.Connection.OrderBaseUrl = Config.OrderBaseUrl;
+        Cfg.Connection.InteractiveWsUrl = Config.InteractiveWsUrl;
+        Cfg.Connection.MarketDataWsUrl = Config.MarketDataWsUrl;
+        Cfg.Connection.InstrumentBaseUrl = Config.InstrumentBaseUrl;
+        Cfg.Connection.InstrumentGzUrl = Config.InstrumentGzUrl;
+        Cfg.Connection.AppKey = Config.AppKey;
+        Cfg.Connection.UserId = Config.UserId;
+        Cfg.Connection.ClientId = Config.ClientId;
 
         Client = new BlitzApiClient(Config);
 
@@ -108,9 +154,20 @@ static class TestContext
         Log($"  Interactive WS: {Config.InteractiveWsUrl}");
         Log($"  Market Data WS: {Config.MarketDataWsUrl}");
         Log($"  Instrument Gz: {Config.InstrumentGzUrl}");
-        Log($"  AppKey: {Config.AppKey[..System.Math.Min(20, Config.AppKey.Length)]}...");
+        Log(string.IsNullOrEmpty(Config.AppKey)
+            ? "  AppKey: (blank - set APP_KEY env var or connection.appKey)"
+            : $"  AppKey: {Config.AppKey[..System.Math.Min(20, Config.AppKey.Length)]}...");
         Log($"  UserId: {Config.UserId}");
         Log(string.Empty);
+
+        if (!string.IsNullOrWhiteSpace(envToken))
+        {
+            Log("── Authentication ──────────────────────────────");
+            Client.SetToken(envToken);
+            Log("       access token injected (no login)");
+            Log(string.Empty);
+            return;
+        }
 
         Log("── Authentication ──────────────────────────────");
         await Client.LoginAsync();

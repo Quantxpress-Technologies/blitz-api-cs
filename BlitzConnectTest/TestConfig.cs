@@ -21,16 +21,19 @@ class TestConnection
     public string? OrderBaseUrl { get; set; }
     public string? InteractiveWsUrl { get; set; }
     public string? MarketDataWsUrl { get; set; }
+    public string? InstrumentBaseUrl { get; set; }
     public string? InstrumentGzUrl { get; set; }
     public string? AppKey { get; set; }
     public string? UserId { get; set; }
     public string? ClientId { get; set; }
+    public int HeartbeatIntervalSeconds { get; set; }
 }
 
 class TestInstrument
 {
     public long Id { get; set; }
     public string Symbol { get; set; } = "";
+    public string LookupSymbol { get; set; } = "";
 }
 
 class TestMarketData
@@ -61,6 +64,7 @@ class TestPlaceOrder
     public int DisclosedQuantity { get; set; }
     public double StopPrice { get; set; }
     public long InstrumentId { get; set; }
+    public string ExchangeSegment { get; set; } = "";
 }
 
 class TestModifyOrder
@@ -74,12 +78,14 @@ class TestModifyOrder
     public double StopPrice { get; set; }
     public long InstrumentId { get; set; }
     public string Symbol { get; set; } = "";
+    public string ExchangeSegment { get; set; } = "";
 }
 
 class TestCancelOrder
 {
     public long BlitzOrderId { get; set; }
     public long InstrumentId { get; set; }
+    public string Symbol { get; set; } = "";
 }
 
 class TestSignal

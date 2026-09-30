@@ -6,15 +6,19 @@ class Program
     static async Task<int> Main(string[] args)
     {
         var suite = args.Length > 0 ? args[0].ToLowerInvariant() : "all";
+        var seconds = 15;
+        if (args.Length > 1 && int.TryParse(args[1], out var parsed))
+            seconds = parsed;
 
         if (suite is "help" or "--help" or "-h")
         {
-            Console.WriteLine("Usage: dotnet run -- <suite>");
+            Console.WriteLine("Usage: dotnet run -- <suite> [seconds]");
             Console.WriteLine();
             Console.WriteLine("  interactive-api    test Interactive REST APIs");
             Console.WriteLine("  marketdata-api     test Market Data REST APIs");
-            Console.WriteLine("  interactive-ws     test Interactive WebSocket");
+            Console.WriteLine("  interactive-ws     test Interactive WebSocket (places and cancels a real order)");
             Console.WriteLine("  marketdata-ws      test Market Data WebSocket (Ctrl+C to stop)");
+            Console.WriteLine("  ws-smoke           read-only WebSocket smoke test for both sockets [seconds]");
             Console.WriteLine("  all                run all API tests (interactive + market data)");
             Console.WriteLine();
             return 0;
@@ -32,6 +36,8 @@ class Program
                 return await InteractiveWsTests.RunAsync();
             case "marketdata-ws":
                 return await MarketDataWsTests.RunAsync();
+            case "ws-smoke":
+                return await WsSmokeTests.RunAsync(seconds);
             case "all":
                 TestContext.Log("── Running all API tests ─────────────────────");
                 TestContext.Log(string.Empty);
